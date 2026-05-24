@@ -1,42 +1,40 @@
-# Native integration (Anytype, Ctrl+P, system print)
+# Native integration (hotkeys, Ctrl+P, system print)
 
-## Can I use Ctrl+P in Anytype?
+## Can I use Ctrl+P?
 
-**Not with printime templates today.**
+**Not for printime templates.**
 
-Anytype Desktop is an Electron app. **Ctrl+P** opens the normal system print dialog and sends **HTML/layout** to whatever printer you pick (usually CUPS). That path does **not** go through printime's:
+Ctrl+P sends **PDF/HTML** through CUPS. Your thermal printer expects **ESC/POS** (receipt bytes). Even with a CUPS queue named `POS8370` and a raw driver, app printing usually fails or prints garbage.
 
-- Jinja templates (`note`, `checklist`, …)
-- 48-column thermal layout
-- Markdown → plain-text transform
-- Preview `[CUT]` logic
-
-So choosing your thermal printer in Ctrl+P will print Anytype's **on-screen rendering**, not the formatted receipt you got from `printime anytype fetch`.
-
-## Recommended setup (what works well)
-
-### 1. Install printime globally
+Use printime instead:
 
 ```bash
-cd ~/Documents/repos/random_projects/adhd/printime
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-
-# Add to ~/.bashrc
-export PATH="$HOME/Documents/repos/random_projects/adhd/printime/.venv/bin:$PATH"
+printime print --text "Hello"
+printime anytype print "Page title" --yes
+printime print --qr "https://..."
 ```
 
-Verify:
+See [QUICKSTART.md](QUICKSTART.md) for plain text and notes.
+
+## Install globally
 
 ```bash
+pipx install -e ~/Documents/repos/random_projects/printime
 printime doctor
-printime anytype list
 ```
 
-### 2. Keep Desktop API configured
+No venv activation or PATH hacks needed — `~/.local/bin/printime`.
 
-In `.env`:
+After updates:
+
+```bash
+cd ~/Documents/repos/random_projects/printime && git pull
+pipx reinstall printime
+```
+
+## Anytype — recommended workflow
+
+### 1. Desktop API in `.env`
 
 ```env
 ANYTYPE_API_URL=http://127.0.0.1:31009
@@ -45,70 +43,44 @@ ANYTYPE_API_KEY=your-desktop-api-key
 
 Anytype Desktop must be running.
 
-### 3. Print by page title (easiest)
-
-No object ID needed:
+### 2. Print by title
 
 ```bash
 printime anytype print "I am 021er" --preview
-printime anytype print "I am 021er"              # direct to printer
-```
-
-Search first:
-
-```bash
 printime anytype search "021er"
 ```
 
-### 4. Keyboard shortcut (feels native)
+### 3. Keyboard shortcut
 
-**Settings → Keyboard → Custom shortcuts** (or `libinput`/desktop environment):
+**Settings → Keyboard → Custom shortcuts:**
 
 | Shortcut | Command |
 |----------|---------|
-| `Ctrl+Shift+P` | `printime anytype print "$(xclip -o)" --yes` |
-| Or fixed title | `printime anytype print "I am 021er" --yes` |
+| `Ctrl+Shift+P` | `printime anytype print "$(xclip -o -selection clipboard)" --yes` |
 
-Script `scripts/anytype-print-selection.sh`:
+Or use the included script:
 
 ```bash
-#!/bin/bash
-# Bind to a hotkey — prints the page title in clipboard, or pass as arg
-TITLE="${1:-$(xclip -o -selection clipboard 2>/dev/null)}"
-exec printime anytype print "$TITLE" --yes
+~/Documents/repos/random_projects/printime/scripts/anytype-print.sh "Page title"
 ```
 
-Copy a page title in Anytype, press the hotkey → thermal print.
+## CUPS queue `POS8370`
 
-## Option B: Show up in the system print dialog (advanced)
+You may see `POS8370` in the system print dialog. That does **not** mean Ctrl+P will produce good thermal output.
 
-You *can* add a **CUPS virtual printer** named "Printime" so it appears in Ctrl+P, but:
-
-- Anytype sends HTML/PDF, not markdown
-- You lose template formatting (title bar, note layout, etc.)
-- You only get "whatever the app rendered" squeezed onto thermal paper
-
-Only worth it if you want **raw** printing from any app, not the template pipeline.
-
-Rough steps (Ubuntu/CUPS):
-
-1. Create a backend script that reads the print job and sends text to `printime print --text ...`
-2. Register with `lpadmin -p Printime ...`
-
-This is a separate project from the Anytype API workflow and is **not** recommended if you liked the template output.
-
-## Option C: Anytype MCP in Cursor
-
-For AI-assisted workflows, add `@anyproto/anytype-mcp` in Cursor MCP settings (same Desktop API key, port `31009`). That helps the **editor** fetch pages — not Ctrl+P inside Anytype.
+`printime doctor` showing `idle` is normal — printer is ready.
 
 ## Summary
 
-| Method | Uses templates? | Effort |
+| Method | Uses templates? | Works? |
 |--------|-----------------|--------|
-| `printime anytype print "title"` | Yes | Low — **best** |
-| Hotkey + title in clipboard | Yes | Low |
-| Ctrl+P → thermal printer | No | Built-in but wrong layout |
-| CUPS virtual "Printime" printer | No | High |
-| `printime anytype fetch <id>` | Yes | Medium (needs ID) |
+| `printime print` / `anytype print` | Yes | ✅ Best |
+| Hotkey + `anytype print` | Yes | ✅ |
+| Ctrl+P → POS8370 | No | ❌ PDF on receipt printer |
+| `printime serve` webhook | Partial | ✅ Automation |
 
-**Suggestion:** install printime on PATH, use `printime anytype print "Page Title"`, bind a global shortcut. Skip Ctrl+P for thermal — it's the wrong pipeline for what you want.
+**Use printime commands, not Ctrl+P.**
+
+## Cursor / agents
+
+Agent skill: [skill/printime.md](../skill/printime.md)

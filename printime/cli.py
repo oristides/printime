@@ -71,11 +71,24 @@ class EscposPrinterAdapter:
 
     def text(self, text, align='left', bold=False, double_height=False, double_width=False):
         payload = text if text else ' '
+        cols = self.width // 2 if double_width else self.width
         if align == 'center':
-            payload = payload.center(self.width)
+            payload = payload.center(cols)
         elif align == 'right':
-            payload = payload.rjust(self.width)
+            payload = payload.rjust(cols)
+        align_map = {'left': 'left', 'center': 'center', 'right': 'right'}
+        self._printer.set(
+            align=align_map.get(align, 'left'),
+            bold=bold,
+            double_height=double_height,
+            double_width=double_width,
+        )
         self._printer.text(payload)
+        self._printer.set(bold=False, double_height=False, double_width=False, align='left')
+        self._printer._raw(b'\x1d!\x00')
+        self._printer._raw(b'\r\n')
+        if double_height:
+            self._printer._raw(b'\r\n')
 
     def qr(self, data, size=8, center=True):
         from escpos.constants import QR_ECLEVEL_M
@@ -105,13 +118,177 @@ def finish_job(printer):
     printer._job_finished = True
 
 
-def print_rendered(printer, rendered: str, cut: bool = True, png_path: str | None = None):
+def _reset_text_style(printer) -> None:
+    """Force normal text mode so heading sizes do not bleed into body lines."""
+    if hasattr(printer, '_write_style'):
+        printer._write_style(reset=True)
+        return
+    raw = getattr(printer, '_printer', printer)
+    if hasattr(raw, '_raw'):
+        raw._raw(b'\x1ba\x00\x1bE\x00\x1d!\x00')
+    elif hasattr(printer, 'set'):
+        try:
+            printer.set(bold=False, double_height=False, double_width=False, align='left')
+        except Exception:
+            pass
+
+
+def _feed_line(printer, count: int = 1) -> None:
+    """Advance the paper by one or more lines."""
+    for _ in range(count):
+        if hasattr(printer, '_write'):
+            printer._write(b'\r\n')
+        elif hasattr(getattr(printer, '_printer', None), '_raw'):
+            printer._printer._raw(b'\r\n')
+        else:
+            printer.text('', align='left')
+
+
+def print_styled_lines(printer, lines, width: int = 48) -> None:
+    """Send styled lines using ESC/POS text modes."""
+    from printime.styled import PrintLine
+
+    for line in lines:
+        if not isinstance(line, PrintLine):
+            continue
+        _reset_text_style(printer)
+        if not line.text:
+            _feed_line(printer)
+            continue
+        printer.text(
+            line.text,
+            align=line.align,
+            bold=line.bold,
+            double_height=line.double_height,
+            double_width=line.double_width,
+        )
+        _reset_text_style(printer)
+        if line.double_height:
+            _feed_line(printer)
+
+
+def _print_plain_block(printer, lines: list[str]) -> None:
+    """Print plain lines with guaranteed line breaks on every backend."""
+    from printime.preview import sanitize_printer_text
+
+    block = sanitize_printer_text('\n'.join(lines) + '\n')
+    _reset_text_style(printer)
+    if hasattr(printer, '_write'):
+        printer._write_style(align='left')
+        printer._write(block.replace('\n', '\r\n').encode('utf-8'))
+        printer._write_style(reset=True)
+    elif hasattr(printer, 'raw'):
+        printer.raw(block)
+    else:
+        for line in lines:
+            printer.text(line, align='left')
+            _feed_line(printer)
+
+
+def _print_title_block(printer, title: str, width: int, caption: str | None = None) -> None:
+    lines = ['=' * width, title.upper()]
+    if caption:
+        lines.append(caption)
+    lines.append('=' * width)
+    _print_plain_block(printer, lines)
+    _feed_line(printer)
+
+
+def print_segments(
+    printer,
+    config: dict,
+    template_name: str,
+    context: dict,
+    *,
+    cut: bool = True,
+) -> None:
+    """Print markdown segments in document order (text, checklist, diagram, QR)."""
+    from printime.services.diagram import mermaid_to_png
+
+    width = config['printer']['width']
+    pixels = int(config.get('printer', {}).get('paper_width_pixels', 576))
+    segments = context.get('segments') or []
+    caption = context.get('caption')
+
+    title = context.get('title')
+    if title and template_name in ('document', 'checklist', 'note'):
+        _print_title_block(printer, title, width, caption=caption)
+
+    for seg in segments:
+        seg_type = seg.get('type')
+        if seg_type == 'styled':
+            print_styled_lines(printer, seg.get('lines') or [])
+        elif seg_type == 'items':
+            _feed_line(printer)
+            for item in seg.get('items') or []:
+                mark = 'X' if item.get('checked') else ' '
+                _reset_text_style(printer)
+                printer.text(f"[{mark}] {item.get('text', '')}", align='left')
+                _feed_line(printer)
+        elif seg_type == 'mermaid':
+            png_path = mermaid_to_png(seg.get('source', ''), width=pixels)
+            if png_path and hasattr(printer, 'image'):
+                printer.image(png_path)
+                _feed_line(printer)
+        elif seg_type == 'qr':
+            data = seg.get('data', '')
+            if not data or not hasattr(printer, 'qr'):
+                continue
+            size = seg.get(
+                'qr_size',
+                int(config.get('printer', {}).get('qr_size', 8)),
+            )
+            center = bool(seg.get('center', False))
+            printer.qr(data, size=size, center=center)
+            if seg.get('show_link'):
+                import textwrap
+
+                align = 'center' if center else 'left'
+                printer.text('')
+                for line in textwrap.wrap(data, width=width):
+                    printer.text(line, align=align)
+            printer.text('')
+
+    if cut:
+        printer.cut()
+
+
+def _extract_styled_lines(context: dict) -> tuple[dict, list | None, str | None]:
+    """Remove styled line lists from context; return field name for marker injection."""
+    ctx = dict(context)
+    for key, field in (
+        ('content_lines', 'content'),
+        ('description_lines', 'description'),
+        ('caption_lines', 'caption'),
+    ):
+        if key in ctx:
+            return ctx, ctx.pop(key), field
+    return ctx, None, None
+
+
+def print_rendered(
+    printer,
+    rendered: str,
+    cut: bool = True,
+    png_path: str | None = None,
+    styled_lines: list | None = None,
+):
     """Send rendered template output to the printer and release the device."""
+    from printime.styled import STYLED_CONTENT_MARKER
+
     backend = getattr(printer, 'backend', type(printer).__name__)
     print(f"[printime] backend={backend}", file=sys.stderr)
     text = sanitize_printer_text(rendered.replace('\r\n', '\n').replace('\r', '\n'))
     try:
-        printer.raw(text)
+        if styled_lines and STYLED_CONTENT_MARKER.strip() in text:
+            before, _, after = text.partition(STYLED_CONTENT_MARKER.strip())
+            if before:
+                printer.raw(before)
+            print_styled_lines(printer, styled_lines)
+            if after.lstrip('\n'):
+                printer.raw(after)
+        else:
+            printer.raw(text)
         if png_path and hasattr(printer, 'image'):
             printer.image(png_path)
         if cut:
@@ -121,6 +298,72 @@ def print_rendered(printer, rendered: str, cut: bool = True, png_path: str | Non
         raise
     finally:
         finish_job(printer)
+
+
+def print_image_page(
+    printer,
+    config,
+    image_path: str,
+    *,
+    title: str | None = None,
+    caption: str | None = None,
+    cut: bool = True,
+) -> None:
+    """Print a raster image with optional title and caption."""
+    from printime.services.diagram import prepare_image_for_print
+
+    width = config['printer']['width']
+    max_px = int(config['printer'].get('paper_width_pixels', 576))
+    prepared = prepare_image_for_print(image_path, max_width=max_px)
+    try:
+        if title:
+            divider = '=' * width
+            printer.text(divider, align='center')
+            printer.text(title, align='center', bold=True)
+            printer.text(divider, align='center')
+            printer.text('')
+        printer.image(prepared)
+        if caption:
+            printer.text('')
+            printer.text(caption, align='center')
+        if cut:
+            printer.cut()
+    finally:
+        finish_job(printer)
+
+
+def _resolve_context_image(context: dict, config) -> str | None:
+    """Render mermaid/LaTeX/frontmatter image refs to a PNG path."""
+    from printime.services.diagram import mermaid_to_png, prepare_image_for_print
+    from printime.services.transform import latex_to_png
+
+    pixels = int(config['printer'].get('paper_width_pixels', 576))
+    if context.get('mermaid'):
+        return mermaid_to_png(context['mermaid'], width=pixels)
+    image_ref = context.get('image') or context.get('image_path')
+    if image_ref and os.path.isfile(str(image_ref)):
+        return prepare_image_for_print(str(image_ref), max_width=pixels)
+    if context.get('latex'):
+        return latex_to_png(context['latex'], size='large')
+    return None
+
+
+def _print_image_job(printer, config, image_path: str, args, *, label: str = 'Image') -> None:
+    from printime.preview import confirm, render_image_preview
+
+    width = config['printer']['width']
+    title = getattr(args, 'title', None)
+    caption = getattr(args, 'content', None)
+    if args.preview:
+        print(render_image_preview(image_path, title=title, caption=caption, width=width))
+        if not (getattr(args, 'yes', False) or confirm('Print this?')):
+            print('Cancelled')
+            return
+    print_image_page(
+        printer, config, image_path,
+        title=title, caption=caption, cut=not args.no_cut,
+    )
+    print(f'{label} printed')
 
 
 def _printer_backend(config) -> str:
@@ -260,12 +503,41 @@ class RawPrinter:
 
     def text(self, text, align='left', bold=False, double_height=False, double_width=False):
         payload = text if text else ''
+        cols = self.width // 2 if double_width else self.width
         if align == 'center':
-            payload = payload.center(self.width)
+            payload = payload.center(cols)
         elif align == 'right':
-            payload = payload.rjust(self.width)
+            payload = payload.rjust(cols)
+        self._write_style(align=align, bold=bold, double_height=double_height, double_width=double_width)
         if payload or text == '':
             self._write(payload.encode('utf-8') + b'\r\n')
+        if double_height:
+            self._write(b'\r\n')
+        self._write_style(reset=True)
+
+    def _write_style(
+        self,
+        *,
+        align: str = 'left',
+        bold: bool = False,
+        double_height: bool = False,
+        double_width: bool = False,
+        reset: bool = False,
+    ):
+        if reset:
+            self._write(b'\x1ba\x00')  # align left
+            self._write(b'\x1bE\x00')  # bold off
+            self._write(b'\x1d!\x00')  # normal size
+            return
+        align_bytes = {'left': b'\x1ba\x00', 'center': b'\x1ba\x01', 'right': b'\x1ba\x02'}
+        self._write(align_bytes.get(align, b'\x1ba\x00'))
+        self._write(b'\x1bE\x01' if bold else b'\x1bE\x00')
+        size = 0
+        if double_height:
+            size |= 0x01
+        if double_width:
+            size |= 0x10
+        self._write(bytes([0x1d, 0x21, size]))
 
     def qr(self, data, size=8, center=True):
         qr = qrcode.QRCode(
@@ -421,8 +693,33 @@ def render_for_print(template_name, context, config):
     return render_template_for_print(template_name, context, config)
 
 
+def resolve_input_path(path: str) -> str:
+    """Resolve a user file path from cwd or the printime install directory."""
+    if os.path.isfile(path):
+        return os.path.abspath(path)
+
+    pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    bundled_examples = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'examples')
+    candidates = [
+        os.path.abspath(path),
+        os.path.join(pkg_root, path),
+        os.path.join(pkg_root, 'examples', os.path.basename(path)),
+        os.path.join(bundled_examples, os.path.basename(path)),
+    ]
+    seen = set()
+    for candidate in candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if os.path.isfile(candidate):
+            return candidate
+
+    raise FileNotFoundError(path)
+
+
 def load_context_file(path: str) -> dict:
     """Load template context from JSON, YAML, or Markdown file."""
+    path = resolve_input_path(path)
     with open(path, 'r') as f:
         if path.endswith('.json'):
             return json.load(f)
@@ -444,6 +741,13 @@ def resolve_print_input(args):
     if args.md or args.file:
         print("Error: use either a positional file or --md/--file, not both", file=sys.stderr)
         sys.exit(2)
+    try:
+        path = resolve_input_path(path)
+    except FileNotFoundError:
+        print(f"Error: file not found: {args.input}", file=sys.stderr)
+        pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        print(f"Hint: try full path, e.g. {pkg_root}/examples/{os.path.basename(path)}", file=sys.stderr)
+        sys.exit(2)
     if path.endswith('.md'):
         args.md = path
         ctx = load_context_file(path)
@@ -456,6 +760,82 @@ def resolve_print_input(args):
     else:
         print(f"Error: unsupported file type: {path} (use .md, .json, or .yaml)", file=sys.stderr)
         sys.exit(2)
+
+
+def _resolve_print_file_args(args) -> None:
+    """Resolve --md / --file paths the same way as positional inputs."""
+    for attr in ('md', 'file'):
+        path = getattr(args, attr, None)
+        if not path:
+            continue
+        try:
+            setattr(args, attr, resolve_input_path(path))
+        except FileNotFoundError:
+            print(f"Error: file not found: {path}", file=sys.stderr)
+            pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            print(f"Hint: try full path, e.g. {pkg_root}/examples/{os.path.basename(path)}", file=sys.stderr)
+            sys.exit(2)
+
+
+def _uses_segment_print(context: dict, template_name: str) -> bool:
+    from printime.services.markdown_blocks import should_use_segment_print
+
+    return should_use_segment_print(context.get('segments') or [], template_name)
+
+
+def _print_template(
+    printer,
+    config,
+    template_name: str,
+    context: dict,
+    *,
+    preview: bool = False,
+    yes: bool = False,
+    no_cut: bool = False,
+    png_path: str | None = None,
+    label: str = 'Template',
+) -> None:
+    from printime.preview import confirm, render_template_preview
+    from printime.styled import STYLED_CONTENT_MARKER
+
+    if _uses_segment_print(context, template_name):
+        if preview:
+            rendered = render_template_preview(template_name, context)
+            print(rendered)
+            if not (yes or confirm('Print this?')):
+                print('Cancelled')
+                return
+        print_segments(
+            printer, config, template_name, context, cut=not no_cut,
+        )
+        finish_job(printer)
+        print(f"{label} '{template_name}' printed")
+        return
+
+    render_ctx, styled_lines, styled_field = _extract_styled_lines(context)
+
+    if preview:
+        rendered = render_template_preview(
+            template_name,
+            render_ctx,
+            styled_lines=styled_lines,
+            styled_field=styled_field,
+        )
+        print(rendered)
+        if not (yes or confirm('Print this?')):
+            print('Cancelled')
+            return
+
+    print_ctx = dict(render_ctx)
+    if styled_lines and styled_field:
+        print_ctx[styled_field] = STYLED_CONTENT_MARKER.strip()
+
+    result = render_for_print(template_name, print_ctx, config)
+    if result:
+        print_rendered(
+            printer, result, cut=not no_cut, png_path=png_path, styled_lines=styled_lines,
+        )
+        print(f"{label} '{template_name}' printed")
 
 
 def cmd_print(args, config, printer):
@@ -471,43 +851,36 @@ def cmd_print(args, config, printer):
             print(f"Unknown test: {args.test}")
         return
 
-    if args.text:
-        printer.text(args.text, bold=args.bold, align='center' if args.center else 'left')
+    if getattr(args, 'image', None):
+        if not os.path.isfile(args.image):
+            print(f'Error: image not found: {args.image}', file=sys.stderr)
+            return
+        _print_image_job(printer, config, args.image, args, label='Image')
+        return
 
-    if args.template:
-        context = {}
-        if args.file:
-            context = load_context_file(args.file)
-        else:
-            if getattr(args, 'title', None):
-                context['title'] = args.title
-            if getattr(args, 'content', None):
-                context['content'] = args.content
-            if getattr(args, 'priority', None):
-                context['priority'] = args.priority
-            if getattr(args, 'tags', None):
-                context['tags'] = [t.strip() for t in args.tags.split(',')]
+    if getattr(args, 'mermaid', None):
+        from printime.services.diagram import mermaid_to_png
 
-        if args.preview:
-            from printime.preview import render_template_preview, confirm
-            rendered = render_template_preview(args.template, context)
-            print(rendered)
-            if getattr(args, 'yes', False) or confirm("Print this?"):
-                result = render_for_print(args.template, context, config)
-                if result:
-                    print_rendered(
-                        printer,
-                        result,
-                        cut=not getattr(args, 'no_cut', False),
-                    )
-                    print(f"Template '{args.template}' printed")
-            else:
-                print("Cancelled")
-        else:
-            result = render_for_print(args.template, context, config)
-            if result:
-                print_rendered(printer, result)
-                print(f"Template '{args.template}' printed")
+        pixels = int(config['printer'].get('paper_width_pixels', 576))
+        png_path = mermaid_to_png(args.mermaid, width=pixels)
+        if not png_path:
+            print('Error: mermaid render failed (install mermaid-cli)', file=sys.stderr)
+            return
+        _print_image_job(printer, config, png_path, args, label='Diagram')
+        return
+
+    if args.qr:
+        qr_size = getattr(args, 'qr_size', 8)
+        print_qr_page(
+            printer, args.qr, config,
+            size=qr_size,
+            show_link=getattr(args, 'show_link', False),
+        )
+        if not args.no_cut:
+            printer.cut()
+        finish_job(printer)
+        print(f"QR code printed: {args.qr}")
+        return
 
     if args.url:
         from printime.services.fetch_url import url_to_context
@@ -523,96 +896,174 @@ def cmd_print(args, config, printer):
         template_name = getattr(args, 'template', None) or context.get('template', 'note')
         if context.get('truncated'):
             print('[printime] Article truncated — use --max-chars 0 for full text', file=sys.stderr)
-
-        if args.preview:
-            from printime.preview import render_template_preview, confirm
-            rendered = render_template_preview(template_name, context)
-            print(rendered)
-            if getattr(args, 'yes', False) or confirm('Print this?'):
-                result = render_for_print(template_name, context, config)
-                if result:
-                    print_rendered(
-                        printer,
-                        result,
-                        cut=not getattr(args, 'no_cut', False),
-                    )
-                    print(f"URL printed: {args.url}")
-            else:
-                print('Cancelled')
-        else:
-            result = render_for_print(template_name, context, config)
-            if result:
-                print_rendered(printer, result, cut=not getattr(args, 'no_cut', False))
-                print(f"URL printed: {args.url}")
+        _print_template(
+            printer, config, template_name, context,
+            preview=args.preview, yes=getattr(args, 'yes', False),
+            no_cut=getattr(args, 'no_cut', False), label='URL',
+        )
+        if not args.preview:
+            print(f"URL printed: {args.url}")
         return
 
     if args.md:
-        from printime.services.transform import markdown_to_context, latex_to_png
+        from printime.services.transform import markdown_to_context
         with open(args.md, 'r') as f:
             content = f.read()
         context = markdown_to_context(content, args.md, config['printer']['width'])
         template_name = getattr(args, 'template', None) or context.get('template', 'note')
 
-        png_path = None
-        if 'latex' in context and context['latex']:
-            png_path = latex_to_png(context['latex'], size='large')
-            if png_path:
-                context['image_path'] = png_path
+        png_path = _resolve_context_image(context, config)
+        if png_path and not _uses_segment_print(context, template_name):
+            context['image_path'] = png_path
 
-        if args.preview:
-            from printime.preview import render_template_preview, confirm
-            rendered = render_template_preview(template_name, context)
-            print(rendered)
-            if getattr(args, 'yes', False) or confirm("Print this?"):
-                try:
-                    result = render_for_print(template_name, context, config)
-                    if result:
-                        print_rendered(
-                            printer,
-                            result,
-                            cut=not getattr(args, 'no_cut', False),
-                            png_path=png_path,
-                        )
-                    print("Markdown printed")
-                except PermissionError:
-                    print("ERROR: Permission denied. Run 'newgrp lp' first or check /dev/usb/lp5 permissions")
-                except Exception as e:
-                    print(f"ERROR: Print failed - {e}")
-            else:
-                print("Cancelled")
-            return
+        try:
+            _print_template(
+                printer, config, template_name, context,
+                preview=args.preview, yes=getattr(args, 'yes', False),
+                no_cut=getattr(args, 'no_cut', False),
+                png_path=png_path if not _uses_segment_print(context, template_name) else None,
+                label='Markdown',
+            )
+            if not args.preview:
+                print('Markdown printed')
+        except PermissionError:
+            print('ERROR: Permission denied. Run \'newgrp lp\' first or check /dev/usb/lp5 permissions')
+        except Exception as e:
+            print(f'ERROR: Print failed - {e}')
+        return
+
+    if args.template:
+        context = {}
+        if args.file:
+            context = load_context_file(args.file)
         else:
-            try:
-                result = render_for_print(template_name, context, config)
-                if result:
-                    print_rendered(printer, result, png_path=png_path)
-                print("Markdown printed")
-            except PermissionError:
-                print("ERROR: Permission denied. Run 'newgrp lp' first or check /dev/usb/lp5 permissions")
-            except Exception as e:
-                print(f"ERROR: Print failed - {e}")
-            return
+            if getattr(args, 'title', None):
+                context['title'] = args.title
+            if getattr(args, 'content', None):
+                context['content'] = args.content
+            elif args.text:
+                context['content'] = args.text
+            if getattr(args, 'priority', None):
+                context['priority'] = args.priority
+            if getattr(args, 'tags', None):
+                context['tags'] = [t.strip() for t in args.tags.split(',')]
 
-    if args.qr:
-        qr_size = getattr(args, 'qr_size', 8)
-        print_qr_page(
-            printer, args.qr, config,
-            size=qr_size,
-            show_link=getattr(args, 'show_link', False),
+        _print_template(
+            printer, config, args.template, context,
+            preview=args.preview, yes=getattr(args, 'yes', False),
+            no_cut=getattr(args, 'no_cut', False), label='Template',
         )
-        if not args.no_cut:
-            printer.cut()
-        finish_job(printer)
-        print(f"QR code printed: {args.qr}")
         return
 
     if args.text:
-        printer.text(args.text, bold=args.bold, align='center' if args.center else 'left')
+        from printime.preview import confirm, render_text_preview
+
+        width = config['printer']['width']
+        align = 'center' if args.center else 'left'
+        if args.preview:
+            print(render_text_preview(
+                args.text, width=width, bold=args.bold, align=align,
+            ))
+            if not (getattr(args, 'yes', False) or confirm('Print this?')):
+                print('Cancelled')
+                return
+        printer.text(args.text, bold=args.bold, align=align)
         if not args.no_cut:
             printer.cut()
         finish_job(printer)
-        print("Text printed")
+        print('Text printed')
         return
+
+    print('Nothing to print. Use --text, --template, --qr, --url, or a file.', file=sys.stderr)
+
+
+def _get_template_dir() -> str:
+    template_dir = os.path.join(os.path.dirname(__file__), 'templates')
+    if not os.path.exists(template_dir):
+        template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
+    return template_dir
+
+
+def _load_template_catalog() -> dict[str, dict]:
+    import yaml
+
+    catalog: dict[str, dict] = {}
+    template_dir = _get_template_dir()
+    if not os.path.exists(template_dir):
+        return catalog
+    for f in os.listdir(template_dir):
+        if not f.endswith('.yaml'):
+            continue
+        name = f[:-5]
+        with open(os.path.join(template_dir, f), 'r') as yf:
+            catalog[name] = yaml.safe_load(yf) or {}
+    return catalog
+
+
+def _format_template_field(field) -> str:
+    if isinstance(field, str):
+        return field
+    if isinstance(field, dict):
+        parts = []
+        for key, value in field.items():
+            if isinstance(value, list) and value and isinstance(value[0], dict):
+                subkeys = ', '.join(value[0].keys())
+                parts.append(f'{key}: [{{{subkeys}}}]')
+            elif value is None:
+                parts.append(f'{key}')
+            else:
+                parts.append(f'{key}: {value}')
+        return ', '.join(parts)
+    return str(field)
+
+
+def _print_template_entry(name: str, data: dict, *, verbose: bool = False) -> None:
+    desc = data.get('description', 'No description')
+    if not verbose:
+        print(f'  {name:<15} - {desc}')
+        return
+
+    print(f'{name}')
+    print(f'  {desc}')
+    fields = data.get('fields', [])
+    if fields:
+        print('  Fields:')
+        for field in fields:
+            print(f'    - {_format_template_field(field)}')
+    if name == 'agenda':
+        print('  Command:')
+        print('    printime agenda --preview')
+    elif name == 'checklist':
+        print('  Example:')
+        print('    printime print examples/checklist.md --preview')
+    else:
+        print('  Example:')
+        print(f'    printime print --template {name} --title "..." --content "..." --preview')
+
+
+def cmd_list(args) -> int:
+    catalog = _load_template_catalog()
+    if not catalog:
+        print('No templates found.', file=sys.stderr)
+        return 1
+
+    template_name = getattr(args, 'template', None)
+    if template_name:
+        if template_name not in catalog:
+            print(f'Unknown template: {template_name}', file=sys.stderr)
+            print(f'Available: {", ".join(sorted(catalog))}', file=sys.stderr)
+            return 1
+        _print_template_entry(template_name, catalog[template_name], verbose=True)
+        return 0
+
+    verbose = getattr(args, 'verbose', False)
+    if verbose:
+        print('Templates (use: printime list <name> for one, printime <cmd> --help for flags)\n')
+    for name in sorted(catalog):
+        _print_template_entry(name, catalog[name], verbose=verbose)
+        if verbose:
+            print()
+    return 0
 
 
 def cmd_doctor(args, config):
@@ -732,11 +1183,18 @@ def cmd_serve(args, config):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Printime - Thermal Printer CLI')
+    from printime.cli_help import HelpfulArgumentParser, PARSER_REGISTRY
+
+    parser = HelpfulArgumentParser(
+        description='Printime - Thermal Printer CLI',
+        prog='printime',
+    )
+    PARSER_REGISTRY[''] = parser
     parser.add_argument('--version', '-v', action='version', version='%(prog)s 0.1.0')
-    subparsers = parser.add_subparsers(dest='command', help='Commands')
+    subparsers = parser.add_subparsers(dest='command', help='Commands', parser_class=HelpfulArgumentParser)
 
     print_parser = subparsers.add_parser('print', help='Print text, QR, or template')
+    PARSER_REGISTRY['print'] = print_parser
     print_parser.add_argument('input', nargs='?', help='Input file (.md, .json, .yaml)')
     print_parser.add_argument('--text', '-t', help='Text to print')
     print_parser.add_argument('--title', help='Title for template')
@@ -745,6 +1203,8 @@ def main():
     print_parser.add_argument('--tags', help='Tags (comma-separated)')
     print_parser.add_argument('--md', help='Print markdown file (.md)')
     print_parser.add_argument('--url', help='Fetch and print a web article (blog post, Substack, etc.)')
+    print_parser.add_argument('--image', help='Print a PNG/JPG image file')
+    print_parser.add_argument('--mermaid', help='Render a .mmd file (mermaid-cli) and print')
     print_parser.add_argument('--max-chars', type=int, default=12000,
                               help='Max article characters for --url (0 = no limit, default: 12000)')
     print_parser.add_argument('--qr', help='Print QR code with data')
@@ -765,7 +1225,14 @@ def main():
     serve_parser = subparsers.add_parser('serve', help='Start HTTP server')
     serve_parser.add_argument('--port', '-p', type=int, default=8080, help='Port (default: 8080)')
 
-    list_parser = subparsers.add_parser('list', help='List available templates')
+    list_parser = subparsers.add_parser(
+        'list',
+        help='List templates and their fields',
+        description='List built-in templates. Pass a template name for field details, '
+                    'or use --verbose for all. Command flags: printime <command> --help',
+    )
+    list_parser.add_argument('template', nargs='?', help='Show fields for one template (e.g. note)')
+    list_parser.add_argument('--verbose', '-v', action='store_true', help='Show fields for every template')
 
     doctor_parser = subparsers.add_parser('doctor', help='Diagnose printer setup')
     doctor_parser.add_argument('--test-print', action='store_true', help='Send a test page')
@@ -792,7 +1259,8 @@ def main():
     transform_parser.add_argument('--preview', '-p', action='store_true', help='Preview before print')
 
     anytype_parser = subparsers.add_parser('anytype', help='Anytype integration')
-    anytype_sub = anytype_parser.add_subparsers(dest='anytype_cmd')
+    PARSER_REGISTRY['anytype'] = anytype_parser
+    anytype_sub = anytype_parser.add_subparsers(dest='anytype_cmd', parser_class=HelpfulArgumentParser)
     anytype_list = anytype_sub.add_parser('list', help='List Anytype spaces')
     anytype_join = anytype_sub.add_parser('join', help='Join a space via invite link')
     anytype_join.add_argument('invite_link', nargs='?', help='Invite link from Anytype Desktop')
@@ -805,6 +1273,7 @@ def main():
     anytype_search = anytype_sub.add_parser('search', help='Search pages across all spaces')
     anytype_search.add_argument('query', help='Search text')
     anytype_print = anytype_sub.add_parser('print', help='Search by title and print')
+    PARSER_REGISTRY['anytype.print'] = anytype_print
     anytype_print.add_argument('query', help='Page title or search text')
     anytype_print.add_argument('--template', '-t', help='Template to use')
     anytype_print.add_argument('--preview', '-p', action='store_true', help='Preview before print')
@@ -827,6 +1296,7 @@ def main():
 
     if args.command == 'print':
         resolve_print_input(args)
+        _resolve_print_file_args(args)
         printer = create_printer(config)
         try:
             cmd_print(args, config, printer)
@@ -837,27 +1307,7 @@ def main():
     elif args.command == 'doctor':
         return cmd_doctor(args, config)
     elif args.command == 'list':
-        template_dir = os.path.join(os.path.dirname(__file__), 'templates')
-        if not os.path.exists(template_dir):
-            template_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'templates')
-
-        if os.path.exists(template_dir):
-            import yaml
-            for f in os.listdir(template_dir):
-                if f.endswith('.yaml'):
-                    name = f[:-5]
-                    path = os.path.join(template_dir, f)
-                    with open(path, 'r') as yf:
-                        data = yaml.safe_load(yf)
-                    desc = data.get('description', 'No description')
-                    print(f"  {name:<15} - {desc}")
-                elif f.endswith('.j2'):
-                    name = f[:-3]
-                    yaml_path = os.path.join(template_dir, name + '.yaml')
-                    if os.path.exists(yaml_path):
-                        pass
-                    else:
-                        print(f"  {name:<15} - (no metadata)")
+        return cmd_list(args)
 
     elif args.command == 'preview':
         from printime.preview import render_template_preview, confirm
@@ -879,11 +1329,16 @@ def main():
         auto_yes = getattr(args, 'yes', False)
 
         if args.text:
-            from printime.preview import PaperPreview
-            preview = PaperPreview()
-            preview._add_line(args.text)
-            preview.footer()
-            print(preview.render())
+            from printime.preview import render_text_preview
+
+            width = config['printer']['width']
+            align = 'center' if getattr(args, 'center', False) else 'left'
+            print(render_text_preview(
+                args.text,
+                width=width,
+                bold=getattr(args, 'bold', False),
+                align=align,
+            ))
             if auto_yes or confirm("Print this?"):
                 printer = create_printer(config)
                 try:
@@ -973,6 +1428,16 @@ def main():
                 print("Cancelled")
 
     elif args.command == 'anytype':
+        if args.anytype_cmd is None:
+            anytype_parser.print_help()
+            print(
+                '\nExamples:\n'
+                '  printime anytype print "Page title" --preview\n'
+                '  printime anytype search "query"\n'
+                '  printime anytype list',
+                file=sys.stderr,
+            )
+            return 2
         from printime.services.anytype import (
             print_page, print_page_by_query, join_space, join_spaces_from_file,
             global_search, list_spaces,
@@ -1032,4 +1497,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main() or 0)

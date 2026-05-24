@@ -6,6 +6,7 @@ List available templates:
 
 ```bash
 printime list
+printime list document    # fields for one template
 ```
 
 ## Markdown-first workflow
@@ -14,29 +15,121 @@ Write a `.md` file with optional YAML frontmatter:
 
 ```markdown
 ---
-template: note
-title: My Title
-priority: high
-tags: [work]
+title: Login Flow
+caption: Happy path only
 ---
 
-# My Title
+# Headin1
+## heading 2
+### heading 3
 
-Body text here. Supports **bold**, lists, and paragraphs.
+Body text here. Left-aligned by default.
+
+- [ ] Milk
+- [x] Bread
+
+```mermaid
+graph TD
+  A --> B
+```
+
+```qr --qr-size 10 --center
+"https://example.com"
+```
 ```
 
 Print:
 
 ```bash
 printime print my-file.md --preview
+printime print examples/diagram_flow.md --preview
 ```
 
-### Frontmatter rules
+See `examples/diagram_flow.md` for a full mixed-content page.
 
-- `template` — which template to use (defaults to `note`)
-- Any other key maps directly to template variables (`title`, `priority`, `tags`, etc.)
-- A `# Heading` at the top of the body becomes `title` if not set in frontmatter
-- `- [ ]` / `- [x]` lines auto-select the `checklist` template
+### Frontmatter fields
+
+| Field | Purpose |
+|-------|---------|
+| `template` | Force a template (`note`, `document`, `checklist`, …). Auto-detected if omitted. |
+| `title` | Header title (between `====` lines). Falls back to `# Heading` or filename. |
+| `caption` | Subtitle under title in the header block (not a diagram label). |
+| Other keys | Map to template variables (`priority`, `tags`, `due_date`, …). |
+
+### Auto template detection
+
+| Content | Template |
+|---------|----------|
+| Mermaid and/or inline QR **plus** body text or checkboxes | `document` |
+| Mermaid only | `diagram` |
+| Checkboxes only | `checklist` |
+| Plain prose | `note` |
+
+### Markdown body syntax
+
+- `#` / `##` / `###` — heading sizes (left-aligned; use `<center>...</center>` to center)
+- `- [ ]` / `- [x]` — checklist items (one line per item on paper)
+- ` ```mermaid ` … ` ``` ` — diagram (rendered via mermaid-cli if installed)
+- Plain ` ``` ` fence with `graph TD` / `flowchart` — also treated as mermaid (Anytype export)
+- ` ```qr [flags] ` … ` ``` ` — inline QR block
+
+**QR fence flags** (same as CLI):
+
+```markdown
+```qr --qr-size 10 --center --show-link
+"https://example.com"
+```
+```
+
+- `--qr-size` — module size 4–12 (default 8)
+- `--center` — center on paper
+- `--show-link` — print URL text below QR
+
+### Title header layout
+
+When `title` (and optional `caption`) are set, they print together at the top:
+
+```
+================================================
+LOGIN FLOW
+Happy path only
+================================================
+```
+
+Body headings (`#`, `##`) print below this block — they do not replace the frontmatter title.
+
+---
+
+## document
+
+Full page: title + caption header, styled markdown, checklists, mermaid diagram, inline QR — in source order.
+
+**Fields:** `title`, `caption`, `content`, `items`, `mermaid`, `qr`, `segments`
+
+**Example:** `examples/diagram_flow.md`
+
+```bash
+printime print examples/diagram_flow.md --preview
+```
+
+Used automatically when markdown mixes prose/checkboxes with mermaid or QR blocks. Also selected for rich Anytype pages.
+
+---
+
+## diagram
+
+Title, rendered mermaid image, optional caption.
+
+**Fields:** `title`, `caption`, `mermaid`, `image_path`
+
+```bash
+printime print --mermaid flow.mmd --preview
+printime print diagram-only.md --preview   # markdown with only a mermaid block
+```
+
+Requires `@mermaid-js/mermaid-cli` (`mmdc` or `npx @mermaid-js/mermaid-cli`).
+
+---
 
 ## note
 
@@ -72,19 +165,7 @@ printime print --template note \
   --preview
 ```
 
-**Output layout:**
-
-```
-================================================
-                  QUICK NOTE
-================================================
-[HIGH]
-
-Remember to send the report
-
-------------------------------------------------
-Tags: work
-```
+---
 
 ## checklist
 
@@ -111,6 +192,8 @@ printime print examples/checklist.md --preview
 
 You do not need `template: checklist` if the file only contains checkbox lines — it is detected automatically.
 
+---
+
 ## task
 
 Single task with description, due date, and completion status.
@@ -132,6 +215,8 @@ completed: false
 Align printed output with terminal preview.
 ```
 
+---
+
 ## jira
 
 Compact Jira ticket printout.
@@ -140,22 +225,7 @@ Compact Jira ticket printout.
 
 Note: use `summary` in frontmatter, or set `title` / `# Heading` — it maps to `summary` automatically.
 
-**Markdown example** (`examples/jira.md`):
-
-```markdown
 ---
-template: jira
-ticket_id: PROJ-123
-status: In Progress
-priority: high
-assignee: Oriel
-labels: [printime, bug]
----
-
-# Align print output with preview
-
-The physical print should match the preview layout.
-```
 
 ## message
 
@@ -163,12 +233,7 @@ Short message with title and body (simpler than `note` — no priority/tags).
 
 **Fields:** `title`, `content`
 
-```bash
-printime print --template message \
-  --title "Reminder" \
-  --content "Team lunch at 12pm" \
-  --preview
-```
+---
 
 ## heading
 
@@ -176,11 +241,25 @@ Large heading text for labels or section markers.
 
 **Fields:** `text`, `style`
 
+---
+
 ## receipt
 
 Receipt-style layout with line items and totals.
 
 **Fields:** `store_name`, `date`, `items`, `subtotal`, `tax`, `total`, `payment_method`
+
+---
+
+## agenda
+
+Calendar day/week layout with times, event titles, and locations.
+
+**Fields:** `title`, `days`, `empty_message`, `source`
+
+Used automatically by `printime agenda`. See [GCAL.md](GCAL.md).
+
+---
 
 ## equation
 
@@ -188,7 +267,7 @@ Renders LaTeX math to an image and prints it. Requires `pdflatex` and `pdftoppm`
 
 **Fields:** `latex`, `caption`, `size`
 
-See `examples/equation_einstein.md` and related latex examples.
+---
 
 ## Preview vs print
 
@@ -198,6 +277,8 @@ See `examples/equation_einstein.md` and related latex examples.
 | `[CUT]` tear guide | Yes | No |
 | Template content | Yes | Yes |
 | Physical paper cut | No | Yes (unless `--no-cut`) |
+
+---
 
 ## Creating your own template
 

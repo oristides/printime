@@ -150,6 +150,114 @@ title: Groceries
         assert context['items'][0]['checked'] is False
         assert context['items'][1]['checked'] is True
 
+    def test_checklist_includes_body_text(self):
+        md = """# RETROSUM
+
+Sprint went well overall.
+Watch scope creep next time.
+
+- [x] eXEMPLO 2
+- [ ] DEDED
+"""
+        context = markdown_to_context(md, 'retro.md', 48)
+        assert context['template'] == 'checklist'
+        assert 'Sprint went well' in context.get('content', '')
+        assert len(context['items']) == 2
+
+    def test_checklist_template_renders_content(self):
+        rendered = render_template_preview(
+            'checklist',
+            {
+                'title': 'RETROSUM',
+                'content': 'Sprint went well overall.',
+                'items': [{'text': 'Done item', 'checked': True}],
+            },
+            width=48,
+        )
+        assert 'Sprint went well' in rendered
+        assert 'Done item' in rendered
+
+    def test_heading_levels_in_content(self):
+        md = """---
+title: Page
+---
+## Section
+### Sub
+Body line
+"""
+        ctx = markdown_to_context(md, 'x.md', 48)
+        lines = ctx['content_lines']
+        h2 = next(l for l in lines if l.text == 'Section')
+        h3 = next(l for l in lines if l.text == 'Sub')
+        assert h2.double_height and not h2.bold
+        assert h3.double_width and not h3.bold
+        assert 'Section' in ctx['content']
+        assert 'Sub' in ctx['content']
+
+    def test_document_preview_title_between_rules(self):
+        from printime.cli import load_context_file
+        from printime.preview import render_template_preview
+        import os
+
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 'examples', 'diagram_flow.md',
+        )
+        ctx = load_context_file(path)
+        lines = render_template_preview('document', ctx).split('\n')
+        title_idx = next(i for i, line in enumerate(lines) if 'LOGIN FLOW' in line)
+        assert lines[title_idx - 1].strip('|').strip() == '=' * 48
+        assert 'Happy path only' in lines[title_idx + 1]
+        assert lines[title_idx + 2].strip('|').strip() == '=' * 48
+
+    def test_document_caption_in_title_block(self):
+        from printime.cli import load_context_file
+        from printime.preview import render_template_preview
+        import os
+
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 'examples', 'diagram_flow.md',
+        )
+        ctx = load_context_file(path)
+        rendered = render_template_preview('document', ctx)
+        title = rendered.index('LOGIN FLOW')
+        caption = rendered.index('Happy path only')
+        diagram = rendered.index('[diagram]')
+        assert title < caption < diagram
+        lines = rendered.split('\n')
+        cap_idx = next(i for i, line in enumerate(lines) if 'Happy path only' in line)
+        assert 'LOGIN FLOW' in lines[cap_idx - 1]
+        assert lines[cap_idx + 1].strip('|').strip() == '=' * 48
+
+    def test_document_preview_checklist_one_item_per_line(self):
+        from printime.cli import load_context_file
+        from printime.preview import render_template_preview
+        import os
+
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 'examples', 'diagram_flow.md',
+        )
+        ctx = load_context_file(path)
+        rendered = render_template_preview('document', ctx)
+        milk = rendered.index('[ ] Milkssdsd')
+        bread = rendered.index('[X] Bread')
+        eggs = rendered.index('[ ] Eggs')
+        assert milk < bread < eggs
+        assert rendered[milk:bread].count('\n') >= 1
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)), 'examples', 'diagram_flow.md',
+        )
+        ctx = load_context_file(path)
+        assert ctx['template'] == 'document'
+        assert ctx.get('mermaid')
+        assert len(ctx['items']) == 4
+        assert 'HEADIN1' in ctx['content'] or any(
+            l.text == 'Headin1' for l in ctx.get('content_lines', [])
+        )
+        rendered = render_template_preview('document', ctx, width=48)
+        assert '[diagram]' in rendered
+        assert 'Happy path only' in rendered
+        assert 'Bread' in rendered
+
 
 class TestPreviewPrintMatch:
     def test_print_output_has_no_cut_guide(self):
@@ -173,6 +281,151 @@ class TestPreviewPrintMatch:
         assert sanitize_printer_text('• item') == '* item'
 
 
+class TestTextPreview:
+    def test_render_text_preview_centered_bold(self):
+        from printime.preview import render_text_preview
+
+        rendered = render_text_preview('URGENT', width=48, bold=True, align='center')
+        assert 'URGENT' in rendered
+        assert '[CUT]' in rendered
+        assert rendered.startswith('|')
+
+
+class TestCmdPrint:
+    def test_text_prints_once(self):
+        from argparse import Namespace
+        from unittest.mock import MagicMock
+
+        from printime.cli import cmd_print
+
+        printer = MagicMock()
+        config = {'printer': {'width': 48}}
+        args = Namespace(
+            test=None,
+            text='URGENT',
+            template=None,
+            url=None,
+            md=None,
+            qr=None,
+            bold=True,
+            center=True,
+            no_cut=False,
+            preview=False,
+            file=None,
+            title=None,
+            content=None,
+            priority=None,
+            tags=None,
+            yes=False,
+            qr_size=8,
+            show_link=False,
+            max_chars=12000,
+        )
+        cmd_print(args, config, printer)
+        printer.text.assert_called_once_with('URGENT', bold=True, align='center')
+
+    def test_markdown_does_not_also_run_template_block(self):
+        from argparse import Namespace
+        from unittest.mock import MagicMock, patch
+
+        from printime.cli import cmd_print
+
+        printer = MagicMock()
+        config = {'printer': {'width': 48}}
+        examples = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'examples')
+        md_path = os.path.join(examples, 'checklist.md')
+        args = Namespace(
+            test=None,
+            text=None,
+            template='checklist',
+            url=None,
+            md=md_path,
+            qr=None,
+            bold=False,
+            center=False,
+            no_cut=False,
+            preview=False,
+            file=None,
+            title=None,
+            content=None,
+            priority=None,
+            tags=None,
+            yes=False,
+            qr_size=8,
+            show_link=False,
+            max_chars=12000,
+        )
+        with patch('printime.cli.print_rendered') as mock_print_rendered:
+            cmd_print(args, config, printer)
+            assert mock_print_rendered.call_count == 1
+
+
+    def test_text_preview_cancels_without_print(self):
+        from argparse import Namespace
+        from unittest.mock import MagicMock, patch
+
+        from printime.cli import cmd_print
+
+        printer = MagicMock()
+        config = {'printer': {'width': 48}}
+        args = Namespace(
+            test=None,
+            text='URGENT',
+            template=None,
+            url=None,
+            md=None,
+            qr=None,
+            bold=True,
+            center=True,
+            no_cut=False,
+            preview=True,
+            file=None,
+            title=None,
+            content=None,
+            priority=None,
+            tags=None,
+            yes=False,
+            qr_size=8,
+            show_link=False,
+            max_chars=12000,
+        )
+        with patch('printime.preview.confirm', return_value=False):
+            cmd_print(args, config, printer)
+        printer.text.assert_not_called()
+
+
+class TestTemplateList:
+    def test_list_one_template_shows_fields(self, capsys):
+        from argparse import Namespace
+
+        from printime.cli import cmd_list
+
+        rc = cmd_list(Namespace(template='note', verbose=False))
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert 'title' in out
+        assert 'content' in out
+
+    def test_list_unknown_template(self, capsys):
+        from argparse import Namespace
+
+        from printime.cli import cmd_list
+
+        rc = cmd_list(Namespace(template='nope', verbose=False))
+        assert rc == 1
+        assert 'Unknown template' in capsys.readouterr().err
+
+
+class TestResolveInputPath:
+    def test_resolves_examples_from_install_root(self, tmp_path, monkeypatch):
+        from printime.cli import resolve_input_path
+
+        monkeypatch.chdir(tmp_path)
+        resolved = resolve_input_path('examples/diagram_flow.md')
+        assert resolved.endswith('examples/diagram_flow.md')
+        assert os.path.isfile(resolved)
+
+
 class TestCLIHelp:
     def test_main_help(self):
         from printime.cli import main
@@ -185,6 +438,32 @@ class TestCLIHelp:
         with pytest.raises(SystemExit):
             sys.argv = ['printime', 'print', '--help']
             main()
+
+    def test_invalid_command_suggests_print(self, capsys):
+        from printime.cli import main
+        with pytest.raises(SystemExit) as exc:
+            sys.argv = ['printime', 'prnt']
+            main()
+        assert exc.value.code == 2
+        err = capsys.readouterr().err
+        assert "Did you mean 'print'?" in err
+
+    def test_unknown_flag_suggests_title(self, capsys):
+        from printime.cli import main
+        with pytest.raises(SystemExit) as exc:
+            sys.argv = ['printime', 'print', '--titel', 'foo']
+            main()
+        assert exc.value.code == 2
+        captured = capsys.readouterr()
+        assert 'Did you mean --title?' in captured.err
+        assert 'printime print' in captured.out
+
+    def test_anytype_without_subcommand_shows_examples(self, capsys):
+        from printime.cli import main
+        sys.argv = ['printime', 'anytype']
+        assert main() == 2
+        err = capsys.readouterr().err
+        assert 'anytype print' in err
 
 
 class TestUrlFetch:

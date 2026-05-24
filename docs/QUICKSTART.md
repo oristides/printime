@@ -1,20 +1,24 @@
 # Quick start
 
-This guide gets you from zero to a printed note in under a minute.
+From zero to a printed note in under a minute.
 
-## 1. Install
+## 1. Install (global CLI)
 
 ```bash
-cd ~/Documents/repos/random_projects/adhd/printime
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
+pipx install -e ~/Documents/repos/random_projects/printime
 ```
 
-Optional — add to your shell profile so `printime` is always available:
+After code changes:
 
 ```bash
-export PATH="$HOME/Documents/repos/random_projects/adhd/printime/.venv/bin:$PATH"
+pipx reinstall printime
+```
+
+Copy config template and edit secrets locally:
+
+```bash
+cp ~/Documents/repos/random_projects/printime/.env.example \
+   ~/Documents/repos/random_projects/printime/.env
 ```
 
 ## 2. Check the printer
@@ -24,15 +28,30 @@ printime doctor
 printime doctor --test-print   # optional: prints a test page
 ```
 
-If you get permission errors on `/dev/usb/lp5`, add yourself to the `lp` group and log in again.
+`CUPS status: idle` is **good** — means ready, not broken.
 
-## 3. Print a quick note
+If you get permission errors on `/dev/usb/lp5`:
 
-There are three ways, from fastest to most reusable.
+```bash
+sudo usermod -aG lp $USER
+# log out and back in
+```
 
-### Option A — inline (fastest, no file)
+## 3. Print plain text (simplest)
 
-Use the `note` template directly from the command line:
+No template, no title bar — just text on paper:
+
+```bash
+printime print --text "Hello world"
+printime print --text "URGENT" --bold --center
+printime print --text "Right side" --center   # centered in 48 columns
+```
+
+Paper is cut automatically at the end (use `--no-cut` to skip).
+
+## 4. Print a formatted note
+
+### Option A — inline (fastest)
 
 ```bash
 printime print --template note \
@@ -41,9 +60,7 @@ printime print --template note \
   --preview
 ```
 
-Preview shows what the paper will look like and asks `Print this? [Y/n]`.
-
-Print immediately without preview:
+Print immediately:
 
 ```bash
 printime print --template note \
@@ -51,110 +68,97 @@ printime print --template note \
   --content "Call dentist tomorrow at 3pm"
 ```
 
-Optional fields:
-
-```bash
-printime print --template note \
-  --title "Standup" \
-  --content "Discuss blockers and sprint goals" \
-  --priority high \
-  --tags "work,team" \
-  --preview
-```
-
-### Option B — markdown file (best for notes you reuse or edit)
-
-Create a file, e.g. `notes/quick.md`:
+### Option B — markdown file
 
 ```markdown
 ---
 template: note
 priority: high
-tags: [errands]
 ---
 
 # Quick note
 
 Call dentist tomorrow at 3pm.
-Pick up dry cleaning on the way back.
-```
-
-Print it:
-
-```bash
-printime print notes/quick.md --preview
-```
-
-You can omit `template: note` in frontmatter — markdown files default to the note template unless they contain checkboxes (which auto-select checklist).
-
-Minimal version (no frontmatter):
-
-```markdown
-# Quick note
-
-Call dentist tomorrow at 3pm.
 ```
 
 ```bash
 printime print notes/quick.md --preview
+printime print examples/diagram_flow.md --preview   # full page with mermaid + QR
 ```
 
-### Option C — plain text (no template formatting)
-
-For a single line with no title bar or borders:
+### Option C — big QR code
 
 ```bash
-printime print --text "Call dentist tomorrow at 3pm"
+printime print --qr "https://calendar.google.com"
+printime print --qr "https://..." --qr-size 10      # larger
+printime print --qr "https://..." --show-link       # URL text below QR
 ```
 
-This skips the `note` template entirely and prints raw text.
+WiFi guest slip:
 
-## 4. Preview only (no print)
+```bash
+printime print --qr 'WIFI:T:WPA;S:MyNetwork;P:password;;'
+```
 
-To see the layout without sending anything to the printer:
+## 5. Google Calendar agenda
+
+Add `GOOGLE_CALENDAR_ICS_URL` to `.env` (see [GCAL.md](GCAL.md)), then:
+
+```bash
+printime agenda --preview
+printime agenda --next-week --yes
+```
+
+## 6. Anytype page
+
+Desktop API in `.env` (see [ANYTYPE.md](ANYTYPE.md)), then:
+
+```bash
+printime anytype print "Login Flow" --preview
+printime anytype search "Login"
+```
+
+Paste markdown into Anytype — printime normalizes escaped fences, checkboxes, and plain mermaid blocks. Add YAML frontmatter at the top for `caption`:
+
+```yaml
+---
+title: Login Flow
+caption: Happy path only
+---
+```
+
+## 7. Preview only
 
 ```bash
 printime preview --file examples/note.md
 printime preview --template note --title "Test" --content "Hello"
 ```
 
-The `[CUT]` line in preview is a tear guide for you — it is **not** printed on paper.
-
-## 5. Checklists
-
-Use markdown checkboxes:
-
-```markdown
----
-title: Shopping
----
-
-- [ ] Milk
-- [x] Bread
-- [ ] Eggs
-```
-
-```bash
-printime print shopping.md --preview
-```
-
-Checkboxes automatically use the `checklist` template. See [TEMPLATES.md](TEMPLATES.md) for details.
+`[CUT]` in preview is a tear guide — **not** printed on paper.
 
 ## Cheat sheet
 
 | Goal | Command |
 |------|---------|
-| Quick note, inline | `printime print --template note --title "..." --content "..." --preview` |
-| Quick note, from file | `printime print my-note.md --preview` |
-| Plain text only | `printime print --text "..."` |
-| Preview only | `printime preview --file my-note.md` |
+| **Plain text** | `printime print --text "..."` |
+| Bold / centered text | `printime print --text "..." --bold --center` |
+| Formatted note | `printime print --template note --title "..." --content "..." --preview` |
+| Note from file | `printime print my-note.md --preview` |
+| Full page (mermaid + QR) | `printime print examples/diagram_flow.md --preview` |
+| QR code | `printime print --qr "https://..."` |
+| Blog / URL | `printime print --url 'https://...' --preview` |
+| Calendar today | `printime agenda --preview` |
+| Calendar next week | `printime agenda --next-week --yes` |
+| Anytype page | `printime anytype print "Page title" --preview` |
+| CLI help on typos | mistyped flags show `--help` for that command |
 | Skip confirmation | add `--yes` |
 | No paper cut | add `--no-cut` |
 | List templates | `printime list` |
 
 ## Next steps
 
-- [TEMPLATES.md](TEMPLATES.md) — all templates and frontmatter fields
 - [COMMANDS.md](COMMANDS.md) — full CLI reference
-- [CONFIG.md](CONFIG.md) — printer configuration and troubleshooting
-- [ANYTYPE.md](ANYTYPE.md) — print Anytype pages
+- [TEMPLATES.md](TEMPLATES.md) — templates and frontmatter
+- [CONFIG.md](CONFIG.md) — printer configuration
+- [GCAL.md](GCAL.md) — Google Calendar setup
+- [ANYTYPE.md](ANYTYPE.md) — Anytype integration

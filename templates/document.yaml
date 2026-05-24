@@ -1,0 +1,10 @@
+name: document
+description: Full page — title + caption header, markdown body, mermaid, QR
+fields:
+  - title
+  - caption
+  - content
+  - items: [{text, checked}]
+  - mermaid
+  - qr
+  - segments

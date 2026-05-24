@@ -1,0 +1,7 @@
+name: diagram
+description: Title, diagram image, and optional caption
+fields:
+  - title
+  - caption
+  - mermaid
+  - image

@@ -1,0 +1,45 @@
+{{ "=" * width }}
+{{ title | upper | ljust(width) }}
+{% if caption %}
+{{ caption | ljust(width) }}
+{% endif %}
+{{ "=" * width }}
+
+{% if segments %}
+{% for seg in segments %}
+{% if seg.type == 'styled' %}
+{{ seg.preview }}
+
+{% elif seg.type == 'items' %}
+{% for item in seg.items %}
+[{{ "X" if item.checked else " " }}] {{ item.text }}
+
+{% endfor %}
+{% elif seg.type == 'mermaid' %}
+{{ "[diagram]" | ljust(width) }}
+
+{% elif seg.type == 'qr' %}
+{% set qr_opts = [] %}
+{% if seg.qr_size is defined and seg.qr_size != 8 %}{% set _ = qr_opts.append('size=' ~ seg.qr_size) %}{% endif %}
+{% if seg.show_link %}{% set _ = qr_opts.append('show-link') %}{% endif %}
+{% if seg.center %}{% set _ = qr_opts.append('center') %}{% endif %}
+{{ ("[QR]" ~ (" (" ~ qr_opts | join(', ') ~ ")" if qr_opts else "") ~ " " ~ seg.data) | truncate(width) | ljust(width) }}
+
+{% endif %}
+{% endfor %}
+{% else %}
+{% if content %}
+{{ content }}
+
+{% endif %}
+{% if items %}
+{% for item in items %}
+[{{ "X" if item.checked else " " }}] {{ item.text }}
+
+{% endfor %}
+{% endif %}
+{% if image_path or mermaid %}
+{{ "[diagram]" | ljust(width) }}
+
+{% endif %}
+{% endif %}

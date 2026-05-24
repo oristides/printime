@@ -16,6 +16,7 @@ Usage:
 """
 
 import json
+import re
 import subprocess
 import urllib.error
 import urllib.request
@@ -281,17 +282,45 @@ def print_page_by_query(query: str, template: Optional[str] = None,
     return print_page(page_id, template=template, space_id=space_id, preview=preview, config=config)
 
 
+def normalize_anytype_markdown(text: str) -> str:
+    """Fix markdown quirks from Anytype export / paste."""
+    from printime.styled import normalize_markdown_text
+
+    while '\\`' in text:
+        text = text.replace('\\`', '`')
+    text = re.sub(r'^(\s*)-\[([ xX])\]', r'\1- [\2]', text, flags=re.MULTILINE)
+    return normalize_markdown_text(text)
+
+
+def _page_markdown_source(obj: Dict[str, Any]) -> str:
+    """Combine Anytype markdown/body fields (API may split prose and checklists)."""
+    markdown = (obj.get('markdown') or '').strip()
+    body = (obj.get('body') or '').strip()
+    if markdown and body and markdown != body:
+        if markdown in body:
+            combined = body
+        elif body in markdown:
+            combined = markdown
+        else:
+            combined = f'{body}\n\n{markdown}'
+    else:
+        combined = markdown or body or (obj.get('snippet') or '')
+    return normalize_anytype_markdown(combined)
+
+
 def page_to_template_context(page: Dict[str, Any], width: int = 48) -> Dict[str, Any]:
     """Convert Anytype API response to printime template context."""
     obj = page.get('object', page)
 
     name = obj.get('name') or obj.get('title') or 'Untitled'
-    markdown = obj.get('markdown') or obj.get('body') or obj.get('snippet') or ''
+    markdown = _page_markdown_source(obj)
 
     if markdown:
-        from printime.services.transform import markdown_to_context
+        from printime.services.transform import _split_frontmatter, markdown_to_context
+
+        meta, _ = _split_frontmatter(markdown)
         context = markdown_to_context(markdown, name, width)
-        if 'title' not in context or context['title'] == name:
+        if not meta.get('title'):
             context['title'] = name
     else:
         context = {'title': name, 'content': obj.get('snippet', '')}
@@ -325,8 +354,6 @@ def page_to_template_context(page: Dict[str, Any], width: int = 48) -> Dict[str,
 
 def detect_template(page: Dict[str, Any], context: Dict[str, Any]) -> str:
     """Pick a printime template from Anytype object type and parsed context."""
-    if context.get('items'):
-        return 'checklist'
     if context.get('template'):
         return context['template']
 
@@ -345,9 +372,9 @@ def detect_template(page: Dict[str, Any], context: Dict[str, Any]) -> str:
 
 
 def print_page(page_id: str, template: Optional[str] = None, space_id: Optional[str] = None,
-               preview: bool = False, config: Optional[Dict] = None):
+               preview: bool = False, config: Optional[Dict] = None, yes: bool = False):
     """Fetch an Anytype page and print it."""
-    from printime.cli import create_printer, load_config, render_for_print, print_rendered
+    from printime.cli import _print_template, create_printer, load_config
 
     print(f"Fetching page: {page_id}")
 
@@ -355,32 +382,26 @@ def print_page(page_id: str, template: Optional[str] = None, space_id: Optional[
     if not page:
         return False
 
-    width = (config or load_config())['printer']['width']
+    if config is None:
+        config = load_config()
+
+    width = config['printer']['width']
     context = page_to_template_context(page, width)
     template = template or detect_template(page, context)
 
     print(f"Using template: {template}")
 
-    if preview:
-        from printime.preview import render_template_preview, confirm
-        rendered = render_template_preview(template, context)
-        print(rendered)
-        if not confirm("Print this?"):
-            print("Cancelled")
-            return False
-
-    if config is None:
-        config = load_config()
-
     printer = create_printer(config)
-    result = render_for_print(template, context, config)
-    if result:
-        print_rendered(printer, result)
-        print("Printed successfully")
-        return True
-
-    print("Failed to render template")
-    return False
+    _print_template(
+        printer,
+        config,
+        template,
+        context,
+        preview=preview,
+        yes=yes,
+        label='Anytype',
+    )
+    return True
 
 
 def main():

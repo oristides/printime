@@ -1,0 +1,12 @@
+{% if title %}
+{{ title | center(width) }}
+{{ "=" * width }}
+{% endif %}
+
+{% if image_path or mermaid %}
+{{ "[diagram]" | center(width) }}
+{% endif %}
+
+{% if caption %}
+{{ caption | center(width) }}
+{% endif %}

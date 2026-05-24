@@ -6,6 +6,7 @@ Transform Service - Convert markdown and other files to print template context.
 import os
 import re
 import subprocess
+import sys
 import tempfile
 import textwrap
 from typing import Optional, Dict, Any, List, Tuple
@@ -38,8 +39,11 @@ def _parse_checkboxes(body: str) -> Tuple[List[Dict[str, Any]], str]:
     for line in body.splitlines():
         m = re.match(r'^\s*-\s+\[([ xX])\]\s+(.*)$', line)
         if m:
+            text = m.group(2).strip()
+            if not text:
+                continue
             items.append({
-                'text': m.group(2).strip(),
+                'text': text,
                 'checked': m.group(1).lower() == 'x',
             })
     if not items:
@@ -50,29 +54,51 @@ def _parse_checkboxes(body: str) -> Tuple[List[Dict[str, Any]], str]:
 
 
 def _markdown_body_to_text(body: str, width: int = 48) -> str:
-    """Convert markdown body to plain wrapped text for note-style templates."""
-    content = body.strip()
-    content = re.sub(r'\*\*(.+?)\*\*', r'\1', content, flags=re.DOTALL)
-    content = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'\1', content, flags=re.DOTALL)
-    content = re.sub(r'^#{1,6}\s+', '', content, flags=re.MULTILINE)
-    content = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', content)
-    content = re.sub(r'```[\s\S]*?```', '', content)
-    content = re.sub(r'`(.+?)`', r'\1', content)
-    content = re.sub(r'^\s*[-*+]\s+', '* ', content, flags=re.MULTILINE)
-    content = re.sub(r'^\s*\d+\.\s+', '* ', content, flags=re.MULTILINE)
-    content = re.sub(r'^>\s*', '> ', content, flags=re.MULTILINE)
+    from printime.styled import format_markdown_for_print
+    return format_markdown_for_print(body, width)
 
-    wrapped_lines = []
-    for line in content.split('\n'):
-        if not line.strip():
-            wrapped_lines.append('')
-        elif line.strip().startswith('* '):
-            wrapped_lines.append(
-                textwrap.fill(line.strip(), width=width, subsequent_indent='  ')
-            )
-        else:
-            wrapped_lines.append(textwrap.fill(line.strip(), width=width))
-    return '\n'.join(wrapped_lines).strip()
+
+def _resolve_template(
+    meta: Dict[str, Any],
+    context: Dict[str, Any],
+    segments: List[Dict[str, Any]],
+) -> str:
+    if meta.get('template'):
+        return meta['template']
+    has_mermaid = any(seg.get('type') == 'mermaid' for seg in segments)
+    has_items = any(seg.get('type') == 'items' for seg in segments)
+    has_body = any(seg.get('type') == 'styled' for seg in segments)
+    has_qr = any(seg.get('type') == 'qr' for seg in segments)
+    if (has_mermaid or has_qr) and (has_items or has_body):
+        return 'document'
+    if has_mermaid:
+        return 'diagram'
+    if has_items:
+        return 'checklist'
+    return 'note'
+
+
+def _sync_legacy_context_fields(context: Dict[str, Any], segments: List[Dict[str, Any]], width: int) -> None:
+    """Keep older template/tests fields populated from ordered segments."""
+    from printime.styled import lines_to_plain_preview
+
+    styled_lines = []
+    all_items = []
+    for seg in segments:
+        if seg['type'] == 'styled':
+            styled_lines.extend(seg['lines'])
+        elif seg['type'] == 'items':
+            all_items.extend(seg['items'])
+        elif seg['type'] == 'mermaid' and 'mermaid' not in context:
+            context['mermaid'] = seg['source']
+        elif seg['type'] == 'qr' and 'qr' not in context:
+            context['qr'] = seg['data']
+
+    if all_items:
+        context['items'] = all_items
+    if styled_lines:
+        context['content_lines'] = styled_lines
+        context['content'] = lines_to_plain_preview(styled_lines, width)
 
 
 def markdown_to_context(markdown: str, filename: str = "", width: int = 48) -> Dict[str, Any]:
@@ -87,30 +113,40 @@ def markdown_to_context(markdown: str, filename: str = "", width: int = 48) -> D
     elif 'title' not in context:
         context['title'] = os.path.splitext(os.path.basename(filename))[0]
 
-    items, body = _parse_checkboxes(body)
-    if items:
-        context['items'] = items
-        if 'template' not in context:
-            context['template'] = 'checklist'
+    from printime.services.markdown_blocks import build_print_segments
 
-    template = context.get('template', 'note')
+    segments = build_print_segments(body, width)
+    context['segments'] = segments
+    _sync_legacy_context_fields(context, segments, width)
+
+    template = _resolve_template(meta, context, segments)
 
     if template == 'jira' and 'summary' not in context and 'title' in context:
         context['summary'] = context['title']
 
-    if template == 'checklist' and items:
-        pass  # items already set
+    if template in ('checklist', 'document') and context.get('items'):
+        if not any(seg.get('type') == 'styled' for seg in segments) and body.strip():
+            from printime.styled import markdown_to_print_lines, lines_to_plain_preview
+            context['content_lines'] = markdown_to_print_lines(body, width)
+            context['content'] = lines_to_plain_preview(context['content_lines'], width)
+    elif template == 'diagram':
+        if body.strip() and 'caption' not in context:
+            from printime.styled import markdown_to_print_lines, lines_to_plain_preview
+            context['caption_lines'] = markdown_to_print_lines(body, width)
+            context['caption'] = lines_to_plain_preview(context['caption_lines'], width)
     elif template in ('task', 'jira', 'message', 'heading', 'receipt'):
         if body.strip() and 'content' not in context and 'description' not in context:
+            from printime.styled import markdown_to_print_lines, lines_to_plain_preview
             field = 'description' if template in ('task', 'jira') else 'content'
-            context[field] = _markdown_body_to_text(body, width)
+            context[f'{field}_lines'] = markdown_to_print_lines(body, width)
+            context[field] = lines_to_plain_preview(context[f'{field}_lines'], width)
     else:
         if body.strip():
-            context['content'] = _markdown_body_to_text(body, width)
+            from printime.styled import markdown_to_print_lines, lines_to_plain_preview
+            context['content_lines'] = markdown_to_print_lines(body, width)
+            context['content'] = lines_to_plain_preview(context['content_lines'], width)
 
-    if 'template' not in context:
-        context['template'] = 'note'
-
+    context['template'] = template
     return context
 
 

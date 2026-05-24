@@ -1,19 +1,19 @@
 # Configuration
 
-Printime reads settings from environment variables (`.env`) and `config/printer.yaml`.
+Printime reads `config/printer.yaml` and `.env` (see `.env.example`).
 
 ## Config file
 
-Default path: `config/printer.yaml`
+`config/printer.yaml`:
 
 ```yaml
 printer:
-  backend: usb          # usb | cups | auto | raw
-  cups_queue: Unknown   # CUPS queue name (if using cups)
-  device: /dev/usb/lp5  # fallback raw device path
-  width: 48             # characters per line (80mm paper)
-  encoding: utf-8
-  profile: ITPP047      # escpos profile
+  backend: usb              # usb | cups | auto | raw (usb recommended)
+  cups_queue: POS8370       # CUPS queue name (for doctor / USB release)
+  device: /dev/usb/lp5
+  width: 48                 # characters per line (80mm paper)
+  paper_width_pixels: 576   # for centered QR/images
+  profile: RP-F10-80mm      # python-escpos profile (80mm)
 
   usb:
     vendor_id: 0x0416
@@ -22,103 +22,99 @@ printer:
     out_ep: 0x01
 ```
 
+`ITPP047` / `POS8370` are aliased to `RP-F10-80mm` in code — do not use `ITPP047` as profile name (not in escpos).
+
 ## Environment variables
 
-Create a `.env` file in the project root:
+Copy `.env.example` → `.env`:
 
 ```env
 PRINTER_DEVICE=/dev/usb/lp5
 PRINTER_WIDTH=48
-PRINTER_PROFILE=ITPP047
+PRINTER_BACKEND=usb
+PRINTER_CUPS_QUEUE=POS8370
+
+GOOGLE_CALENDAR_ICS_URL=...
+GOOGLE_CALENDAR_TIMEZONE=America/Sao_Paulo
+
+ANYTYPE_API_URL=http://127.0.0.1:31009
+ANYTYPE_API_KEY=...
+
 SERVER_PORT=8080
-ANYTYPE_API_KEY=your-key-here
 ```
 
-Environment variables override YAML values where supported.
+**Never commit `.env`** — it is in `.gitignore`.
+
+## Install / update CLI
+
+```bash
+pipx install -e ~/Documents/repos/random_projects/printime
+pipx reinstall printime   # after git pull or code changes
+```
 
 ## Backends
 
 | Backend | When to use |
 |---------|-------------|
-| `usb` | **Recommended** — direct ESC/POS via `python-escpos` |
-| `cups` | System print queue |
-| `raw` | Write directly to `/dev/usb/lp*` |
-| `auto` | Try USB, then CUPS, then raw |
+| `usb` | **Default** — direct ESC/POS via python-escpos |
+| `cups` | System print queue only |
+| `raw` | Write bytes to `/dev/usb/lp*` |
+| `auto` | Try USB → CUPS → raw |
+
+Printime temporarily **disables** the CUPS queue during USB prints to avoid conflicts.
 
 ## Setup checklist
 
-1. **Install dependencies**
+1. `pipx install -e ~/Documents/repos/random_projects/printime`
+2. `cp .env.example .env` and fill in optional integrations
+3. `ls -la /dev/usb/lp*` and `printime doctor`
+4. `sudo usermod -aG lp $USER` if permission denied
+5. `printime doctor --test-print`
 
-   ```bash
-   pip install -e .
-   ```
+## CUPS vs Ctrl+P
 
-2. **Check device**
-
-   ```bash
-   ls -la /dev/usb/lp*
-   printime doctor
-   ```
-
-3. **Permissions**
-
-   User must be in the `lp` group:
-
-   ```bash
-   sudo adduser $USER lp
-   # log out and back in
-   ```
-
-4. **Test print**
-
-   ```bash
-   printime doctor --test-print
-   ```
+- **POS8370 in CUPS** = Linux sees the printer (`lpstat -p`)
+- **`idle`** = ready, not an error
+- **Ctrl+P from apps** sends PDF — thermal printer cannot render it; use `printime print` instead
+- CUPS queue should use **raw** driver if you use system print at all
 
 ## Troubleshooting
 
-### `Permission denied` on `/dev/usb/lp5`
-
-Add yourself to the `lp` group and re-login, or run `newgrp lp` in the current shell.
-
-### CUPS queue conflicts
-
-If a CUPS queue (e.g. `Unknown`) grabs the printer with the wrong driver, disable it before USB printing:
+### `command not found`
 
 ```bash
-cancel -a Unknown
-cupsdisable Unknown
+pipx install -e ~/Documents/repos/random_projects/printime
 ```
 
-Then retry:
+### `KeyError: 'ITPP047'` (profile)
+
+Set `profile: RP-F10-80mm` in `config/printer.yaml`.
+
+### Permission denied on `/dev/usb/lp5`
 
 ```bash
-printime doctor --test-print
+sudo usermod -aG lp $USER
+newgrp lp   # or log out/in
 ```
 
-### Print succeeds but nothing comes out
+See also `udev/80-pos8370.rules`.
 
-- Run `printime doctor` and check backend is `usb`
-- Clear stuck CUPS jobs: `cancel -a`
-- Verify USB IDs in `config/printer.yaml` match your printer (`lsusb`)
+### Stuck CUPS jobs
+
+```bash
+cancel -a POS8370
+cupsenable POS8370
+```
 
 ### Garbled characters
 
-Printime sanitizes Unicode to ASCII for thermal printers (e.g. `•` → `*`). Use plain ASCII in note content for best results.
+Thermal printers expect plain ASCII. Printime sanitizes Unicode (e.g. `•` → `*`).
 
-### `[CUT]` appeared on paper (older versions)
+### `[CUT]` on paper
 
-Current behavior: `[CUT]` is **preview only**. Paper output contains template text; the printer performs a physical cut at the end. Update with `pip install -e .` if you see `[CUT]` on paper.
+Current versions: `[CUT]` is **preview only**. Update: `pipx reinstall printime`.
 
-## Paper width
+## Integrations
 
-Default width is **48 characters** for 80mm thermal paper (POS-8370). Adjust in `config/printer.yaml` if lines wrap incorrectly.
-
-## Anytype integration
-
-See **[ANYTYPE.md](ANYTYPE.md)** for the full setup guide.
-
-- `ANYTYPE_API_KEY` — HTTP API requests (in your `.env`)
-- Account key — `anytype auth login` only (different credential)
-- `ANYTYPE_SPACE_ID` — space containing the page
-- Local API URL defaults to `http://127.0.0.1:31012` (starts after login)
+- **Google Calendar:** [GCAL.md](GCAL.md) — `GOOGLE_CALENDAR_ICS_URL`
+- **Anytype:** [ANYTYPE.md](ANYTYPE.md) — Desktop API port `31009`
