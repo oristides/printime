@@ -7,10 +7,21 @@ Thermal printer CLI with markdown-first templates, terminal preview, and integra
 ## Quick start
 
 ```bash
-pipx install -e ~/Documents/repos/random_projects/printime
+pipx install -e ~/Documents/repos/random_projects/printime[tickets]
+cp config/printer.example.yaml config/printer.yaml   # edit for your printer
 cp ~/Documents/repos/random_projects/printime/.env.example ~/Documents/repos/random_projects/printime/.env
 printime doctor
 ```
+
+**Ticket PDFs** need the `[tickets]` extra. If printime is already installed via pipx:
+
+```bash
+pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless
+# or reinstall with extras:
+pipx install -e ~/Documents/repos/random_projects/printime[tickets] --force
+```
+
+Optional (better barcode decode): `sudo apt install libzbar0`
 
 **Print plain text:**
 
@@ -34,13 +45,13 @@ See **[docs/QUICKSTART.md](docs/QUICKSTART.md)** for the full guide.
 | Doc | What it covers |
 |-----|----------------|
 | [docs/QUICKSTART.md](docs/QUICKSTART.md) | Install, plain text, notes, checklists |
+| [docs/CONFIG.md](docs/CONFIG.md) | **Printer setup (any hardware), pipx reinstall, encoding** |
 | [docs/COMMANDS.md](docs/COMMANDS.md) | Full CLI reference |
 | [docs/TEMPLATES.md](docs/TEMPLATES.md) | Every template and markdown examples |
-| [docs/CONFIG.md](docs/CONFIG.md) | Printer setup, USB/CUPS, troubleshooting |
 | [docs/GCAL.md](docs/GCAL.md) | Google Calendar agenda |
 | [docs/ANYTYPE.md](docs/ANYTYPE.md) | Print Anytype pages |
 | [docs/NATIVE.md](docs/NATIVE.md) | Hotkeys, Ctrl+P vs printime |
-| [skill/printime.md](skill/printime.md) | Agent skill for Cursor / automation |
+| [skills/printime.md](skills/printime.md) | Agent skill for Cursor / automation |
 
 ## Common commands
 

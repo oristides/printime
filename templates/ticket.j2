@@ -1,0 +1,7 @@
+{{ "=" * width }}
+{{ title | upper | center(width) }}
+{{ "=" * width }}
+{% if caption %}
+{{ caption | center(width) }}
+{% endif %}
+{{ STYLED_CONTENT_MARKER }}

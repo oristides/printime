@@ -5,7 +5,13 @@ From zero to a printed note in under a minute.
 ## 1. Install (global CLI)
 
 ```bash
-pipx install -e ~/Documents/repos/random_projects/printime
+pipx install -e ~/Documents/repos/random_projects/printime[tickets]
+```
+
+If already installed without ticket support:
+
+```bash
+pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless
 ```
 
 After code changes:

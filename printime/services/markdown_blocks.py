@@ -171,12 +171,27 @@ def _markdown_chunk_to_segments(text: str, width: int) -> List[Dict[str, Any]]:
     return segments
 
 
-def build_print_segments(body: str, width: int = 48) -> List[Dict[str, Any]]:
+def build_print_segments(
+    body: str,
+    width: int = 48,
+    *,
+    link_qr: bool = False,
+    link_qr_size: int = 5,
+    main_url: str | None = None,
+) -> List[Dict[str, Any]]:
     """Build ordered segments for thermal printing."""
     segments: List[Dict[str, Any]] = []
     for kind, payload, header in split_markdown_body(body):
         if kind == 'markdown':
-            segments.extend(_markdown_chunk_to_segments(payload, width))
+            if link_qr:
+                from printime.services.link_qr import markdown_lines_to_link_segments
+                segments.extend(
+                    markdown_lines_to_link_segments(
+                        payload, width, link_qr_size=link_qr_size, main_url=main_url,
+                    )
+                )
+            else:
+                segments.extend(_markdown_chunk_to_segments(payload, width))
         elif kind == 'mermaid':
             source = normalize_mermaid_source(payload)
             if source:
@@ -197,9 +212,9 @@ def should_use_segment_print(segments: List[Dict[str, Any]], template_name: str)
     kinds = {seg.get('type') for seg in segments}
     if kinds == {'mermaid'} and template_name == 'diagram':
         return False
-    if 'qr' in kinds:
+    if template_name in ('document', 'ticket'):
         return True
-    if template_name == 'document':
+    if kinds & {'qr', 'barcode', 'code_image'}:
         return True
     if len(segments) > 1:
         return True

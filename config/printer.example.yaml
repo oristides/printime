@@ -1,0 +1,41 @@
+# Printime — printer configuration example
+# Copy to config/printer.yaml and adjust for YOUR hardware.
+#
+# Quick setup:
+#   1. ls -la /dev/usb/lp*     # find device node
+#   2. lsusb                   # find USB vendor:product (ID 0416:5011)
+#   3. lpstat -p               # CUPS queue name (optional)
+#   4. printime doctor
+
+printer:
+  # usb (recommended) | cups | raw | auto
+  backend: usb
+
+  # --- Paper layout (most 80mm printers) ---
+  width: 48                  # characters per line (58mm≈32, 80mm≈48)
+  paper_width_pixels: 576    # 80mm @ 203dpi — for centered QR/images
+  encoding: cp850            # cp850 (Western Europe) | latin-1 | ascii
+
+  # --- CUPS (optional; used by doctor and USB release) ---
+  cups_queue: YOUR_CUPS_QUEUE_NAME
+
+  # --- Linux device node (raw / fallback) ---
+  device: /dev/usb/lp0
+
+  # --- USB IDs (from lsusb; example only — use YOUR printer's IDs) ---
+  usb:
+    vendor_id: 0x0416
+    product_id: 0x5011
+    in_ep: 0x81
+    out_ep: 0x01
+
+  # python-escpos profile — see: python-escpos printer profiles
+  # Common 80mm: RP-F10-80mm, TM-T88IV, simple
+  profile: simple
+
+  # Default QR module size (CLI --qr-size overrides)
+  qr_size: 8
+  link_qr_size: 5
+
+templates:
+  default_layout: note

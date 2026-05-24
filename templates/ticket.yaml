@@ -1,0 +1,7 @@
+name: ticket
+description: Ticket PDF — title, optional caption, QR/barcodes in document order
+fields:
+  - title
+  - caption
+  - segments
+  - source_pdf

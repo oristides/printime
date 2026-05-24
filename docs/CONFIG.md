@@ -1,120 +1,166 @@
 # Configuration
 
-Printime reads `config/printer.yaml` and `.env` (see `.env.example`).
+Printime reads **`config/printer.yaml`** (your machine) and **`.env`** (secrets). The repo ships a **maintainer default** `printer.yaml` plus a generic **`config/printer.example.yaml`** — copy the example when setting up a new printer.
 
-## Config file
-
-`config/printer.yaml`:
-
-```yaml
-printer:
-  backend: usb              # usb | cups | auto | raw (usb recommended)
-  cups_queue: POS8370       # CUPS queue name (for doctor / USB release)
-  device: /dev/usb/lp5
-  width: 48                 # characters per line (80mm paper)
-  paper_width_pixels: 576   # for centered QR/images
-  profile: RP-F10-80mm      # python-escpos profile (80mm)
-
-  usb:
-    vendor_id: 0x0416
-    product_id: 0x5011
-    in_ep: 0x81
-    out_ep: 0x01
-```
-
-`ITPP047` / `POS8370` are aliased to `RP-F10-80mm` in code — do not use `ITPP047` as profile name (not in escpos).
-
-## Environment variables
-
-Copy `.env.example` → `.env`:
-
-```env
-PRINTER_DEVICE=/dev/usb/lp5
-PRINTER_WIDTH=48
-PRINTER_BACKEND=usb
-PRINTER_CUPS_QUEUE=POS8370
-
-GOOGLE_CALENDAR_ICS_URL=...
-GOOGLE_CALENDAR_TIMEZONE=America/Sao_Paulo
-
-ANYTYPE_API_URL=http://127.0.0.1:31009
-ANYTYPE_API_KEY=...
-
-SERVER_PORT=8080
-```
-
-**Never commit `.env`** — it is in `.gitignore`.
-
-## Install / update CLI
+## First-time install (pipx)
 
 ```bash
-pipx install -e ~/Documents/repos/random_projects/printime
-pipx reinstall printime   # after git pull or code changes
+cd ~/Documents/repos/random_projects/printime
+
+# Full install including ticket PDF support:
+pipx install -e .[tickets]
+
+# Or minimal (no PDF tickets):
+pipx install -e .
 ```
+
+Copy config and secrets:
+
+```bash
+cp config/printer.example.yaml config/printer.yaml   # if you don't have one yet
+cp .env.example .env
+printime doctor
+```
+
+## Reinstall / update after git pull
+
+**Code only changed** (same deps):
+
+```bash
+pipx reinstall printime
+# or from repo:
+pipx install -e ~/Documents/repos/random_projects/printime[tickets] --force
+```
+
+**Added ticket PDF support** to an existing pipx install:
+
+```bash
+pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless
+```
+
+**Full reinstall with extras** (recommended after big updates):
+
+```bash
+pipx install -e ~/Documents/repos/random_projects/printime[tickets] --force
+```
+
+Optional barcode library (Linux):
+
+```bash
+sudo apt install libzbar0
+```
+
+**Never use** `pip install printime[tickets]` on the system Python (PEP 668 blocks it). Always use **pipx**.
+
+---
+
+## Configure your printer (agnostic)
+
+### 1. Find your hardware
+
+```bash
+ls -la /dev/usb/lp*          # device node → printer.device
+lsusb                        # ID vvpp:pppp → printer.usb.vendor_id / product_id
+lpstat -p                      # queue name → printer.cups_queue (optional)
+printime doctor
+```
+
+### 2. Copy the example config
+
+```bash
+cp config/printer.example.yaml config/printer.yaml
+```
+
+Edit `config/printer.yaml`:
+
+| Field | Typical 80mm | Notes |
+|-------|--------------|-------|
+| `width` | `48` | Chars per line (58mm paper ≈ 32) |
+| `paper_width_pixels` | `576` | 80mm @ 203dpi — QR/image centering |
+| `encoding` | `cp850` | Western European (ã, ç, é). Use `ascii` if garbled |
+| `backend` | `usb` | Direct ESC/POS (recommended) |
+| `profile` | `simple` or `RP-F10-80mm` | python-escpos profile for your model |
+| `device` | `/dev/usb/lp0` | Your device node |
+| `usb.vendor_id` / `product_id` | from `lsusb` | Required for USB backend |
+
+### 3. Environment overrides (optional)
+
+`.env` overrides YAML:
+
+```env
+PRINTER_DEVICE=/dev/usb/lp0
+PRINTER_WIDTH=48
+PRINTER_BACKEND=usb
+PRINTER_CUPS_QUEUE=MyThermal
+PRINTER_PROFILE=simple
+```
+
+---
+
+## Character encoding (São Paulo, ã, ç)
+
+- **Preview** shows real Unicode in the terminal.
+- **Print** uses **`encoding: cp850`** by default (Latin/Western Europe).
+- Bullets and dashes are normalized (`•` → `*`).
+
+If characters still garble on paper, try `encoding: latin-1` or `ascii` in `printer.yaml`.
+
+---
 
 ## Backends
 
 | Backend | When to use |
 |---------|-------------|
-| `usb` | **Default** — direct ESC/POS via python-escpos |
-| `cups` | System print queue only |
+| `usb` | **Default** — direct ESC/POS |
+| `cups` | System queue only |
 | `raw` | Write bytes to `/dev/usb/lp*` |
 | `auto` | Try USB → CUPS → raw |
 
-Printime temporarily **disables** the CUPS queue during USB prints to avoid conflicts.
+Printime temporarily **releases** the CUPS queue during USB jobs to avoid conflicts.
 
-## Setup checklist
+---
 
-1. `pipx install -e ~/Documents/repos/random_projects/printime`
-2. `cp .env.example .env` and fill in optional integrations
-3. `ls -la /dev/usb/lp*` and `printime doctor`
-4. `sudo usermod -aG lp $USER` if permission denied
-5. `printime doctor --test-print`
+## Preview fidelity
 
-## CUPS vs Ctrl+P
+Terminal preview simulates paper width (`width` chars), title blocks, ASCII QR (sized with `--qr-size`), and `[CUT]`.
 
-- **POS8370 in CUPS** = Linux sees the printer (`lpstat -p`)
-- **`idle`** = ready, not an error
-- **Ctrl+P from apps** sends PDF — thermal printer cannot render it; use `printime print` instead
-- CUPS queue should use **raw** driver if you use system print at all
+**Agents:** verify output before printing:
+
+```python
+from printime.preview_capture import render_and_summarize, read_preview
+
+result = render_and_summarize('ticket', context, config)
+print(read_preview(result['preview']))   # digest: lines, QR rows, unicode, issues
+print(result['preview'])                 # full bordered preview
+```
+
+Or CLI:
+
+```bash
+printime print --ticket ticket.pdf --preview --yes 2>&1 | tee /tmp/preview.txt
+```
+
+---
+
+## Maintainer default vs yours
+
+The committed `config/printer.yaml` is **one developer's POS-8370** setup. Your printer will differ — use `printer.example.yaml` as the template and do not assume `/dev/usb/lp5` or `POS8370`.
+
+---
 
 ## Troubleshooting
 
-### `command not found`
-
-```bash
-pipx install -e ~/Documents/repos/random_projects/printime
-```
-
-### `KeyError: 'ITPP047'` (profile)
-
-Set `profile: RP-F10-80mm` in `config/printer.yaml`.
-
-### Permission denied on `/dev/usb/lp5`
-
-```bash
-sudo usermod -aG lp $USER
-newgrp lp   # or log out/in
-```
-
-See also `udev/80-pos8370.rules`.
-
-### Stuck CUPS jobs
-
-```bash
-cancel -a POS8370
-cupsenable POS8370
-```
-
-### Garbled characters
-
-Thermal printers expect plain ASCII. Printime sanitizes Unicode (e.g. `•` → `*`).
-
-### `[CUT]` on paper
-
-Current versions: `[CUT]` is **preview only**. Update: `pipx reinstall printime`.
+| Problem | Fix |
+|---------|-----|
+| `command not found` | `pipx install -e .[tickets]` |
+| Ticket PDF missing pymupdf | `pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless` |
+| Permission denied USB | `sudo usermod -aG lp $USER` then re-login |
+| `KeyError` profile | Use `simple` or a valid escpos profile name |
+| CUPS `idle` | Normal — ready |
+| Garbled text | Set `encoding: cp850` or `ascii` |
+| Ctrl+P garbage | Use `printime print`, not CUPS PDF |
 
 ## Integrations
 
-- **Google Calendar:** [GCAL.md](GCAL.md) — `GOOGLE_CALENDAR_ICS_URL`
-- **Anytype:** [ANYTYPE.md](ANYTYPE.md) — Desktop API port `31009`
+- [GCAL.md](GCAL.md) — Google Calendar
+- [ANYTYPE.md](ANYTYPE.md) — Anytype Desktop API

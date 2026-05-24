@@ -465,6 +465,16 @@ class TestCLIHelp:
         err = capsys.readouterr().err
         assert 'anytype print' in err
 
+    def test_main_help_lists_templates(self, capsys):
+        from printime.cli import main
+        with pytest.raises(SystemExit):
+            sys.argv = ['printime', '--help']
+            main()
+        out = capsys.readouterr().out
+        assert 'document' in out
+        assert 'printime print' in out
+        assert 'ticket' in out
+
 
 class TestUrlFetch:
     SAMPLE_HTML = """

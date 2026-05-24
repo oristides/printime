@@ -211,7 +211,7 @@ def print_segments(
     caption = context.get('caption')
 
     title = context.get('title')
-    if title and template_name in ('document', 'checklist', 'note'):
+    if title and template_name in ('document', 'checklist', 'note', 'ticket'):
         _print_title_block(printer, title, width, caption=caption)
 
     for seg in segments:
@@ -229,6 +229,20 @@ def print_segments(
             png_path = mermaid_to_png(seg.get('source', ''), width=pixels)
             if png_path and hasattr(printer, 'image'):
                 printer.image(png_path)
+                _feed_line(printer)
+        elif seg_type == 'barcode':
+            data = seg.get('data', '')
+            sym = seg.get('symbology', 'barcode')
+            if data and hasattr(printer, 'qr'):
+                printer.text(sym.upper(), align='center', bold=True)
+                printer.qr(data, size=seg.get('qr_size', 8), center=True)
+                _feed_line(printer)
+        elif seg_type == 'code_image':
+            path = seg.get('image_path')
+            if path and os.path.isfile(path) and hasattr(printer, 'image'):
+                from printime.services.diagram import prepare_image_for_print
+                prepared = prepare_image_for_print(path, max_width=pixels)
+                printer.image(prepared)
                 _feed_line(printer)
         elif seg_type == 'qr':
             data = seg.get('data', '')
@@ -465,8 +479,14 @@ class RawPrinter:
         self.device = config['printer']['device']
         self.width = config['printer']['width']
         self.paper_width_pixels = int(config['printer'].get('paper_width_pixels', 576))
+        self.encoding = config['printer'].get('encoding', 'cp850')
         self._buffer = b''
         self._fp = None
+
+    def _encode_text(self, text: str) -> bytes:
+        from printime.text_encoding import encode_for_printer
+        enc = self.encoding if self.encoding in ('cp850', 'latin-1', 'ascii', 'utf-8') else 'cp850'
+        return encode_for_printer(text, enc)
 
     def _write(self, data):
         self._buffer += data
@@ -493,7 +513,7 @@ class RawPrinter:
         else:
             text = data.replace('\\r', '\r').replace('\\n', '\n')
         self._write(b'\x1b\x40')
-        self._write(text.replace('\n', '\r\n').encode('utf-8'))
+        self._write(self._encode_text(text.replace('\n', '\r\n')))
 
     def close(self):
         self._flush()
@@ -510,7 +530,7 @@ class RawPrinter:
             payload = payload.rjust(cols)
         self._write_style(align=align, bold=bold, double_height=double_height, double_width=double_width)
         if payload or text == '':
-            self._write(payload.encode('utf-8') + b'\r\n')
+            self._write(self._encode_text(payload) + b'\r\n')
         if double_height:
             self._write(b'\r\n')
         self._write_style(reset=True)
@@ -753,12 +773,14 @@ def resolve_print_input(args):
         ctx = load_context_file(path)
         if not args.template:
             args.template = ctx.get('template', 'note')
+    elif path.endswith('.pdf'):
+        args.ticket = path
     elif path.endswith(('.json', '.yaml', '.yml')):
         args.file = path
         if not args.template:
             args.template = 'note'
     else:
-        print(f"Error: unsupported file type: {path} (use .md, .json, or .yaml)", file=sys.stderr)
+        print(f"Error: unsupported file type: {path} (use .md, .pdf, .json, or .yaml)", file=sys.stderr)
         sys.exit(2)
 
 
@@ -799,14 +821,16 @@ def _print_template(
     from printime.styled import STYLED_CONTENT_MARKER
 
     if _uses_segment_print(context, template_name):
+        ctx = dict(context)
+        ctx.setdefault('paper_width_pixels', int(config['printer'].get('paper_width_pixels', 576)))
         if preview:
-            rendered = render_template_preview(template_name, context)
+            rendered = render_template_preview(template_name, ctx)
             print(rendered)
             if not (yes or confirm('Print this?')):
                 print('Cancelled')
                 return
         print_segments(
-            printer, config, template_name, context, cut=not no_cut,
+            printer, config, template_name, ctx, cut=not no_cut,
         )
         finish_job(printer)
         print(f"{label} '{template_name}' printed")
@@ -882,6 +906,26 @@ def cmd_print(args, config, printer):
         print(f"QR code printed: {args.qr}")
         return
 
+    if getattr(args, 'ticket', None):
+        from printime.services.tickets import pdf_to_ticket_context
+
+        if not os.path.isfile(args.ticket):
+            print(f'Error: ticket PDF not found: {args.ticket}', file=sys.stderr)
+            return
+        try:
+            context = pdf_to_ticket_context(args.ticket, config['printer']['width'])
+        except ImportError as exc:
+            print(f'Error: {exc}', file=sys.stderr)
+            return
+        _print_template(
+            printer, config, 'ticket', context,
+            preview=args.preview, yes=getattr(args, 'yes', False),
+            no_cut=getattr(args, 'no_cut', False), label='Ticket',
+        )
+        if not args.preview:
+            print(f'Ticket printed: {args.ticket}')
+        return
+
     if args.url:
         from printime.services.fetch_url import url_to_context
 
@@ -889,7 +933,13 @@ def cmd_print(args, config, printer):
         if max_chars == 0:
             max_chars = None
         try:
-            context = url_to_context(args.url, config['printer']['width'], max_chars)
+            context = url_to_context(
+                args.url,
+                config['printer']['width'],
+                max_chars,
+                link_qr=getattr(args, 'link_qr', False),
+                link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
+            )
         except Exception as exc:
             print(f'Error fetching URL: {exc}', file=sys.stderr)
             return
@@ -909,7 +959,13 @@ def cmd_print(args, config, printer):
         from printime.services.transform import markdown_to_context
         with open(args.md, 'r') as f:
             content = f.read()
-        context = markdown_to_context(content, args.md, config['printer']['width'])
+        context = markdown_to_context(
+            content,
+            args.md,
+            config['printer']['width'],
+            link_qr=getattr(args, 'link_qr', False),
+            link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
+        )
         template_name = getattr(args, 'template', None) or context.get('template', 'note')
 
         png_path = _resolve_context_image(context, config)
@@ -948,6 +1004,17 @@ def cmd_print(args, config, printer):
             if getattr(args, 'tags', None):
                 context['tags'] = [t.strip() for t in args.tags.split(',')]
 
+        from printime.services.enrich import enrich_context_fields
+        context = enrich_context_fields(
+            context,
+            config['printer']['width'],
+            markdown=True,
+            link_qr=getattr(args, 'link_qr', False),
+            link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
+        )
+        if context.get('segments') and not args.template:
+            args.template = context.get('template', 'document')
+
         _print_template(
             printer, config, args.template, context,
             preview=args.preview, yes=getattr(args, 'yes', False),
@@ -956,9 +1023,48 @@ def cmd_print(args, config, printer):
         return
 
     if args.text:
-        from printime.preview import confirm, render_text_preview
+        from printime.preview import confirm, render_styled_text_preview, render_text_preview
+        from printime.services.enrich import looks_like_markdown
+        from printime.styled import markdown_to_print_lines
 
         width = config['printer']['width']
+        use_markdown = getattr(args, 'markdown', False) or looks_like_markdown(args.text)
+        link_qr = getattr(args, 'link_qr', False)
+
+        if link_qr or (use_markdown and '[](http' in args.text or '](http' in args.text):
+            from printime.services.markdown_blocks import build_print_segments
+            context = {
+                'title': getattr(args, 'title', '') or '',
+                'segments': build_print_segments(
+                    args.text,
+                    width,
+                    link_qr=True,
+                    link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
+                ),
+            }
+            from printime.preview import _render_segments_preview
+            if args.preview:
+                print(_render_segments_preview(context, width=width))
+                if not (getattr(args, 'yes', False) or confirm('Print this?')):
+                    print('Cancelled')
+                    return
+            print_segments(printer, config, 'document', context, cut=not args.no_cut)
+            print('Text printed')
+            return
+
+        if use_markdown:
+            lines = markdown_to_print_lines(args.text, width)
+            if args.preview:
+                print(render_styled_text_preview(lines, width=width))
+                if not (getattr(args, 'yes', False) or confirm('Print this?')):
+                    print('Cancelled')
+                    return
+            print_styled_lines(printer, lines, width=width)
+            if not args.no_cut:
+                printer.cut()
+            print('Text printed')
+            return
+
         align = 'center' if args.center else 'left'
         if args.preview:
             print(render_text_preview(
@@ -970,7 +1076,6 @@ def cmd_print(args, config, printer):
         printer.text(args.text, bold=args.bold, align=align)
         if not args.no_cut:
             printer.cut()
-        finish_job(printer)
         print('Text printed')
         return
 
@@ -1183,20 +1288,33 @@ def cmd_serve(args, config):
 
 
 def main():
+    from printime.cli_epilog import MAIN_EPILOG, PRINT_EPILOG
     from printime.cli_help import HelpfulArgumentParser, PARSER_REGISTRY
 
     parser = HelpfulArgumentParser(
         description='Printime - Thermal Printer CLI',
         prog='printime',
+        epilog=MAIN_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     PARSER_REGISTRY[''] = parser
     parser.add_argument('--version', '-v', action='version', version='%(prog)s 0.1.0')
     subparsers = parser.add_subparsers(dest='command', help='Commands', parser_class=HelpfulArgumentParser)
 
-    print_parser = subparsers.add_parser('print', help='Print text, QR, or template')
+    print_parser = subparsers.add_parser(
+        'print',
+        help='Print text, QR, templates, markdown, URLs, tickets',
+        epilog=PRINT_EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     PARSER_REGISTRY['print'] = print_parser
-    print_parser.add_argument('input', nargs='?', help='Input file (.md, .json, .yaml)')
+    print_parser.add_argument('input', nargs='?', help='Input file (.md, .pdf, .json, .yaml)')
     print_parser.add_argument('--text', '-t', help='Text to print')
+    print_parser.add_argument('--markdown', '-m', action='store_true',
+                              help='Parse --text / --content as markdown (# headings, **bold**, lists)')
+    print_parser.add_argument('--link-qr', action='store_true',
+                              help='Add mini QR codes for URLs in markdown or --url articles')
+    print_parser.add_argument('--ticket', help='Print ticket PDF (extract QR/barcodes in order)')
     print_parser.add_argument('--title', help='Title for template')
     print_parser.add_argument('--content', help='Content for template')
     print_parser.add_argument('--priority', help='Priority (HIGH, MEDIUM, LOW)')

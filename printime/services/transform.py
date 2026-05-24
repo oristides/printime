@@ -101,7 +101,15 @@ def _sync_legacy_context_fields(context: Dict[str, Any], segments: List[Dict[str
         context['content'] = lines_to_plain_preview(styled_lines, width)
 
 
-def markdown_to_context(markdown: str, filename: str = "", width: int = 48) -> Dict[str, Any]:
+def markdown_to_context(
+    markdown: str,
+    filename: str = "",
+    width: int = 48,
+    *,
+    link_qr: bool = False,
+    link_qr_size: int = 5,
+    main_url: str | None = None,
+) -> Dict[str, Any]:
     """Convert markdown with YAML frontmatter to template context."""
     meta, body = _split_frontmatter(markdown)
     context: Dict[str, Any] = dict(meta)
@@ -115,7 +123,9 @@ def markdown_to_context(markdown: str, filename: str = "", width: int = 48) -> D
 
     from printime.services.markdown_blocks import build_print_segments
 
-    segments = build_print_segments(body, width)
+    segments = build_print_segments(
+        body, width, link_qr=link_qr, link_qr_size=link_qr_size, main_url=main_url,
+    )
     context['segments'] = segments
     _sync_legacy_context_fields(context, segments, width)
 

@@ -1,34 +1,23 @@
-# Printime - Thermal Printer Configuration
-# POS-8370 Thermal Receipt Printer
+# Printime — maintainer default (80mm POS-8370 / RP-F10 class)
+# Others: copy config/printer.example.yaml → config/printer.yaml
 
 printer:
-  # Preferred backend: usb | cups | auto | raw
-  # Use "usb" for direct ESC/POS (recommended for this printer).
   backend: usb
-
-  # CUPS queue name (auto-detected if omitted)
   cups_queue: POS8370
-
-  # Direct device fallback (used only if USB/CUPS fail)
   device: /dev/usb/lp5
+  width: 48
+  paper_width_pixels: 576
+  encoding: cp850
 
-  # ESC/POS USB connection
   usb:
     vendor_id: 0x0416
     product_id: 0x5011
     in_ep: 0x81
     out_ep: 0x01
 
-  # Print settings
-  width: 48  # Characters per line (80mm receipt width - 48 chars for POS-8370)
-  paper_width_pixels: 576  # 80mm @ 203dpi — used to center QR/images
-  encoding: utf-8
-
-  # Printer profile (python-escpos; ITPP047/POS8370 → RP-F10-80mm alias)
   profile: RP-F10-80mm
+  qr_size: 8
+  link_qr_size: 5
 
-# Template system
 templates:
   default_layout: receipt
-
-# Available templates

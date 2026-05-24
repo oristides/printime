@@ -38,19 +38,15 @@ def truncate_text(text: str, width: int = INNER_WIDTH) -> str:
 
 
 def sanitize_printer_text(text: str) -> str:
-    """Convert text to ASCII-safe content for thermal printers."""
-    replacements = {
-        '•': '*',
-        '–': '-',
-        '—': '-',
-        '‘': "'",
-        '’': "'",
-        '“': '"',
-        '”': '"',
-    }
-    for src, dst in replacements.items():
-        text = text.replace(src, dst)
-    return text.encode('ascii', errors='replace').decode('ascii')
+    """Prepare text for thermal print (cp850 Latin; fallback ascii)."""
+    from printime.text_encoding import sanitize_printer_text as _encode
+    return _encode(text, encoding='cp850')
+
+
+def normalize_preview_text(text: str) -> str:
+    """Preview text — keep accented characters visible in terminal."""
+    from printime.text_encoding import normalize_for_preview
+    return normalize_for_preview(text)
 
 
 class PaperPreview:
@@ -65,9 +61,9 @@ class PaperPreview:
     def add_title_header(self, title: str, caption: str | None = None) -> None:
         """Title block: === lines with title and optional caption from frontmatter."""
         self._add_separator('=')
-        self._add_line(title.upper().ljust(self.width))
+        self._add_line(normalize_preview_text(title).upper().ljust(self.width))
         if caption:
-            self._add_line(caption.ljust(self.width))
+            self._add_line(normalize_preview_text(caption).ljust(self.width))
         self._add_separator('=')
         self._add_blank()
 
@@ -143,6 +139,23 @@ def _render_jinja_template(template_name: str, context: dict, width: int = INNER
     return template.render(**ctx)
 
 
+def render_styled_text_preview(lines, *, width: int = INNER_WIDTH) -> str:
+    """Preview for markdown/styled PrintLine list."""
+    preview = PaperPreview(width=width)
+    from printime.styled import PrintLine
+
+    for line in lines:
+        if not isinstance(line, PrintLine):
+            continue
+        from printime.styled import format_print_line
+        if not line.text:
+            preview._add_blank()
+        else:
+            preview._add_line(format_print_line(line, width), bold=line.bold or line.double_height)
+    preview.footer()
+    return preview.render()
+
+
 def render_text_preview(
     text: str,
     *,
@@ -152,7 +165,7 @@ def render_text_preview(
 ) -> str:
     """Terminal preview for plain text with borders and [CUT] guide."""
     preview = PaperPreview(width=width)
-    line = sanitize_printer_text(text)
+    line = normalize_preview_text(text)
     if align == 'center':
         line = center_text(line, width)
     elif align == 'right':
@@ -204,12 +217,38 @@ def _append_styled_lines(preview: PaperPreview, lines, width: int = INNER_WIDTH)
         preview._add_line(formatted, bold=line.bold or line.double_height)
 
 
+def _append_qr_preview(
+    preview: PaperPreview,
+    data: str,
+    width: int,
+    meta: str = '',
+    *,
+    qr_size: int = 8,
+    paper_width_pixels: int = 576,
+    center: bool = True,
+) -> None:
+    from printime.preview_qr import render_qr_ascii
+
+    if meta:
+        preview._add_line(meta)
+    for line in render_qr_ascii(
+        data,
+        qr_size=qr_size,
+        paper_width_pixels=paper_width_pixels,
+        paper_cols=width,
+        center=center,
+    ):
+        preview._add_line(line)
+    preview._add_blank()
+
+
 def _render_segments_preview(context: dict, width: int = INNER_WIDTH) -> str:
     preview = PaperPreview(width=width, framed=False)
     title = context.get('title', '')
     caption = context.get('caption')
+    paper_px = int(context.get('paper_width_pixels', 576))
     if title:
-        preview.add_title_header(title, caption=caption)
+        preview.add_title_header(normalize_preview_text(title), caption=normalize_preview_text(caption or '') or None)
 
     for seg in context.get('segments', []):
         seg_type = seg.get('type')
@@ -236,9 +275,32 @@ def _render_segments_preview(context: dict, width: int = INNER_WIDTH) -> str:
                 extra.append('show-link')
             if seg.get('center'):
                 extra.append('center')
+            if seg.get('link_qr'):
+                extra.append('link')
+            if seg.get('ticket_code'):
+                extra.append('ticket')
             opts = f" ({', '.join(extra)})" if extra else ''
-            label = f"[QR]{opts} {data}"
-            preview._add_line(truncate_text(label, width))
+            label = truncate_text(f"[QR]{opts}", width)
+            _append_qr_preview(
+                preview, data, width, meta=label,
+                qr_size=size,
+                paper_width_pixels=paper_px,
+                center=bool(seg.get('center', True)),
+            )
+        elif seg_type == 'barcode':
+            sym = seg.get('symbology', 'barcode').upper()
+            data = seg.get('data', '')
+            preview._add_line(truncate_text(f'[{sym}] {data}', width))
+            if data and len(data) <= 800:
+                _append_qr_preview(
+                    preview, data, width, meta='(scan fallback)',
+                    qr_size=6,
+                    paper_width_pixels=paper_px,
+                    center=True,
+                )
+        elif seg_type == 'code_image':
+            sym = seg.get('symbology', 'image')
+            preview._add_line(f'[code image: {sym}]')
             preview._add_blank()
 
     preview.footer()

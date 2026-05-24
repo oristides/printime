@@ -138,6 +138,9 @@ def url_to_context(
     url: str,
     width: int = 48,
     max_chars: Optional[int] = DEFAULT_MAX_CHARS,
+    *,
+    link_qr: bool = False,
+    link_qr_size: int = 5,
 ) -> Dict[str, Any]:
     """Fetch a URL and build a note template context."""
     from printime.services.transform import _markdown_body_to_text
@@ -160,6 +163,19 @@ def url_to_context(
         cut = body[:max_chars].rsplit('\n', 1)[0]
         body = f'{cut}\n\n[… truncated — use --max-chars 0 for full text]'
         truncated = True
+
+    if link_qr:
+        from printime.services.markdown_blocks import build_print_segments
+        segments = build_print_segments(
+            body, width, link_qr=True, link_qr_size=link_qr_size, main_url=url,
+        )
+        return {
+            'title': title,
+            'template': 'document',
+            'source_url': url,
+            'truncated': truncated,
+            'segments': segments,
+        }
 
     content = _markdown_body_to_text(body, width)
     if len(url) <= width + 10:
