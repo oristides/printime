@@ -1,0 +1,13 @@
+{{ "=" * width }}
+{{ title | upper | center(width) }}
+{{ "=" * width }}
+
+{% if priority %}
+[{{ priority | upper }}] {{ "[DONE]" if completed else "" }}
+{% endif %}
+
+{{ description }}
+
+{% if due_date %}
+Due: {{ due_date }}
+{% endif %}

@@ -1,0 +1,26 @@
+{{ "=" * width }}
+{{ title | upper | center(width) }}
+{{ "=" * width }}
+
+{% for day in days %}
+{% if days | length > 1 %}
+{{ day.label | center(width) }}
+{{ "-" * width }}
+{% endif %}
+{% if day.events %}
+{% for event in day.events %}
+{{ event.time | ljust(8) }}{{ event.title }}
+{% if event.location %}
+         {{ event.location }}
+{% endif %}
+
+{% endfor %}
+{% else %}
+{{ empty_message | center(width) }}
+
+{% endif %}
+{% endfor %}
+{% if source %}
+{{ "-" * width }}
+{{ source | center(width) }}
+{% endif %}

@@ -1,0 +1,12 @@
+name: jira
+description: Jira ticket template
+fields:
+  - ticket_id
+  - summary
+  - description
+  - status
+  - assignee
+  - reporter
+  - priority
+  - labels
+  - url

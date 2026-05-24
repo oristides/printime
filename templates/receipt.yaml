@@ -1,0 +1,16 @@
+name: Receipt
+description: Standard receipt template
+layout: vertical
+sections:
+  - header
+  - items
+  - total
+  - footer
+fields:
+  - store_name
+  - date
+  - items
+  - subtotal
+  - tax
+  - total
+  - payment_method

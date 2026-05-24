@@ -1,0 +1,6 @@
+# POS-8370 Thermal Receipt Printer
+# Winbond Electronics Corp. Virtual Com Port (0416:5011)
+SUBSYSTEM=="usb", ATTR{idVendor}=="0416", ATTR{idProduct}=="5011", \
+    MODE="0664", GROUP="lp", \
+    SYMLINK+="usb/lp5", \
+    TAG+="uaccess"

@@ -1,0 +1,5 @@
+name: heading
+description: Section heading with style variations
+fields:
+  - text
+  - style: single, double, bar, center

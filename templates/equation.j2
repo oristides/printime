@@ -1,0 +1,13 @@
+{{ "=" * width }}
+{{ "EQUATION" | center(width) }}
+{{ "=" * width }}
+
+{% if image_path %}
+[IMAGE]
+{% elif latex %}
+[LaTeX: {{ latex }}]
+{% endif %}
+
+{% if caption %}
+{{ caption | center(width) }}
+{% endif %}

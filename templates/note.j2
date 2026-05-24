@@ -1,0 +1,14 @@
+{{ "=" * width }}
+{{ title | upper | center(width) }}
+{{ "=" * width }}
+
+{% if priority %}
+[{{ priority | upper }}]
+{% endif %}
+
+{{ content }}
+
+{% if tags %}
+{{ "-" * width }}
+Tags: {{ tags | join(', ') }}
+{% endif %}

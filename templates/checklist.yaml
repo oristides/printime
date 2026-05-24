@@ -1,0 +1,5 @@
+name: checklist
+description: Task checklist with checkboxes
+fields:
+  - title
+  - items: [{text, checked}]

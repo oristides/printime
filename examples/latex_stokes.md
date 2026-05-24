@@ -1,0 +1,5 @@
+---
+template: equation
+latex: \oint_C \vec{F} \cdot d\vec{r} = \iint_S (\nabla \times \vec{F}) \cdot \hat{n} \, dS
+caption: Stokes' Theorem
+---

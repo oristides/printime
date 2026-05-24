@@ -1,0 +1,7 @@
+name: agenda
+description: Calendar agenda with times, titles, and locations
+fields:
+  - title
+  - days
+  - empty_message
+  - source

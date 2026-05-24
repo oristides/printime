@@ -1,0 +1,25 @@
+{% if store_name %}
+{{ store_name | center(width) }}
+{{ "=" * width }}
+{% endif %}
+
+Date: {{ date | default('NOW') | format_date }}
+
+{% for item in items %}
+{{ item.name | truncate(width - 10, True) | ljust(width - 10) }}{{ item.price | rjust(10) }}
+{% endfor %}
+
+{{ "-" * width }}
+{% if subtotal %}
+Subtotal:{{ "" | rjust(width - 9) }}{{ subtotal | rjust(9) }}
+{% endif %}
+{% if tax %}
+Tax:{{ "" | rjust(width - 4) }}{{ tax | rjust(4) }}
+{% endif %}
+{% if total %}
+TOTAL:{{ "" | rjust(width - 5) }}{{ total | rjust(5) }}
+{% endif %}
+
+{% if payment_method %}
+{{ "Payment: " + payment_method | center(width) }}
+{% endif %}

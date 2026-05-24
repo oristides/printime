@@ -1,0 +1,20 @@
+{{ "=" * width }}
+{{ "JIRA TICKET" | center(width) }}
+{{ "=" * width }}
+
+{{ ticket_id }} {{ summary | truncate(width - ticket_id | length - 1, True) }}
+
+{{ "-" * width }}
+Status: {{ status | default('Open') }}
+Priority: {{ priority | default('Medium') }}
+Assignee: {{ assignee | default('Unassigned') }}
+
+{{ "-" * width }}
+{% if description %}
+{{ description }}
+{% endif %}
+
+{% if labels %}
+{{ "-" * width }}
+Labels: {{ labels | join(', ') }}
+{% endif %}

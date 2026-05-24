@@ -1,0 +1,8 @@
+{{ "=" * width }}
+{{ title | upper | center(width) }}
+{{ "=" * width }}
+
+{% for item in items %}
+[{{ "X" if item.checked else " " }}] {{ item.text }}
+
+{% endfor %}

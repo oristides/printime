@@ -1,0 +1,8 @@
+# Paste invite links from Anytype Desktop here, one per line.
+# Get them: open a space → Share → copy invite link
+#
+# Example:
+# https://invite.any.coop/#bafyrei...%2F...%23...
+#
+# Then run:
+#   printime anytype join --file examples/anytype-invites.txt

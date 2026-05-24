@@ -1,0 +1,8 @@
+name: task
+description: General task/todo item
+fields:
+  - title
+  - description
+  - due_date
+  - priority: low, medium, high
+  - completed: boolean

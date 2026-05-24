@@ -1,0 +1,14 @@
+{% if style == 'double' %}
+{{ "=" * width }}
+{{ text | center(width) }}
+{{ "=" * width }}
+{% elif style == 'bar' %}
+{{ "-" * width }}
+{{ text }}
+{{ "-" * width }}
+{% elif style == 'center' %}
+{{ text | center(width) }}
+{% else %}
+{{ text }}
+{{ "-" * width }}
+{% endif %}

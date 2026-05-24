@@ -1,0 +1,6 @@
+name: equation
+description: LaTeX math equation rendered as image
+fields:
+  - latex
+  - caption
+  - size: small, medium, large

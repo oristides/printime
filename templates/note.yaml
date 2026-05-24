@@ -1,0 +1,7 @@
+name: note
+description: Personal note template with title and content
+fields:
+  - title
+  - content
+  - priority
+  - tags
