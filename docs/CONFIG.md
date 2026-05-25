@@ -7,8 +7,8 @@ Printime reads **`config/printer.yaml`** (your machine) and **`.env`** (secrets)
 ```bash
 cd ~/Documents/repos/random_projects/printime
 
-# Full install including ticket PDF support:
-pipx install -e .[tickets]
+# Full install including ticket PDF and Google Keep support:
+pipx install -e .[all]
 
 # Or minimal (no PDF tickets):
 pipx install -e .
@@ -29,7 +29,7 @@ printime doctor
 ```bash
 pipx reinstall printime
 # or from repo:
-pipx install -e ~/Documents/repos/random_projects/printime[tickets] --force
+pipx install -e ~/Documents/repos/random_projects/printime[all] --force
 ```
 
 **Added ticket PDF support** to an existing pipx install:
@@ -41,7 +41,7 @@ pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless
 **Full reinstall with extras** (recommended after big updates):
 
 ```bash
-pipx install -e ~/Documents/repos/random_projects/printime[tickets] --force
+pipx install -e ~/Documents/repos/random_projects/printime[all] --force
 ```
 
 Optional barcode library (Linux):
@@ -50,7 +50,7 @@ Optional barcode library (Linux):
 sudo apt install libzbar0
 ```
 
-**Never use** `pip install printime[tickets]` on the system Python (PEP 668 blocks it). Always use **pipx**.
+**Never use** `pip install printime[all]` on the system Python (PEP 668 blocks it). Always use **pipx**.
 
 ---
 
@@ -183,7 +183,7 @@ The committed `config/printer.yaml` is **one developer's POS-8370** setup. Your 
 
 | Problem | Fix |
 |---------|-----|
-| `command not found` | `pipx install -e .[tickets]` |
+| `command not found` | `pipx install -e .[all]` |
 | Ticket PDF missing pymupdf | `pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless` |
 | Permission denied USB | `sudo usermod -aG lp $USER` then re-login |
 | `KeyError` profile | Use `simple` or a valid escpos profile name |

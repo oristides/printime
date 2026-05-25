@@ -34,7 +34,7 @@ Full table: [HOTKEYS.md](HOTKEYS.md).
 ## Install globally
 
 ```bash
-pipx install -e ~/Documents/repos/random_projects/printime[tickets]
+pipx install -e ~/Documents/repos/random_projects/printime[all]
 printime doctor
 ```
 
@@ -42,7 +42,7 @@ After updates:
 
 ```bash
 cd ~/Documents/repos/random_projects/printime && git pull
-pipx install -e ~/Documents/repos/random_projects/printime[tickets] --force
+pipx install -e ~/Documents/repos/random_projects/printime[all] --force
 ```
 
 ## Anytype workflow

@@ -9,15 +9,18 @@ Templates (see: printime list, printime list <name>):
   receipt, heading, agenda, equation, ticket
 
 Examples:
-  printime print --text "Hello"
-  printime print --markdown --text "# Title\\n\\nBody" --preview
+  printime print --template note --title "Today" \\
+    --content "Ship docs" --preview
+  printime print --template message --title "Alert" \\
+    --content "Printer ready" --preview
   printime print notes.md --preview
   printime print examples/diagram_flow.md --preview
   printime print --url 'https://example.com/post' --link-qr --preview
   printime print --ticket examples/tickets-pdf/Ticket.pdf --preview
   printime print --qr "https://example.com"
   printime anytype print "Page title" --preview
-  printime agenda --next-week --preview
+  printime agenda --today --preview
+  printime agenda --days 7 --preview
   printime doctor --test-print
 
 Markdown mini-syntax (.md files, --markdown, template content):
@@ -30,10 +33,13 @@ Markdown mini-syntax (.md files, --markdown, template content):
 
 PRINT_EPILOG = """
 Examples:
-  printime print --text "Plain line"
-  printime print --markdown --text "# Shop\\n- [ ] Milk" --preview
+  printime print --template note --title "Today" \\
+    --content "Ship docs" --preview
+  printime print --template message --title "Alert" \\
+    --content "Printer ready" --preview
   printime print note.md --preview
   printime print --url 'https://blog.example/post' --link-qr --preview
   printime print --ticket ticket.pdf --preview
   printime print --qr "https://example.com" --qr-size 10
+  printime print --text "Plain line"
 """

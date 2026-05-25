@@ -25,16 +25,18 @@ Print text, QR codes, templates, markdown, URLs, or files.
 printime print [OPTIONS] [FILE]
 ```
 
-### Plain text
+### Quick note (template)
+
+Prefer templates for notes, messages, and checklists. They include title blocks and automatic minute-precision datetime.
 
 ```bash
-printime print --text "Hello world"
-printime print --text "URGENT" --bold
-printime print --text "Centered" --center
-printime print --text "No cut" --no-cut
+printime print --template note \
+  --title "Title" \
+  --content "Body text" \
+  --preview
 ```
 
-Plain text has **no** title bar or template borders. Paper is cut at the end unless `--no-cut`.
+`note`, `checklist`, `message`, and `agenda` print `YYYY-MM-DD HH:MM` below the title/subtitle automatically.
 
 ### QR codes
 
@@ -59,24 +61,35 @@ printime print --url 'https://...' --max-chars 0     # no limit
 
 Works well: Substack, many news sites (Folha `articleBody`). Unreliable: Medium, paywalls.
 
-### Quick note (template)
+### Plain text fallback
 
 ```bash
-printime print --template note \
-  --title "Title" \
-  --content "Body text" \
-  --preview
+printime print --text "Hello world"
+printime print --text "URGENT" --bold
+printime print --text "Centered" --center
+printime print --text "No cut" --no-cut
 ```
+
+Plain text has **no** title bar, template fields, or automatic datetime. Paper is cut at the end unless `--no-cut`.
 
 ### From markdown file
 
 ```bash
 printime print my-note.md --preview
+printime print examples/oriel-mandates.md --preview  # includes a rendered table
 printime print examples/note.md --preview
 printime print examples/diagram_flow.md --preview   # document: headings, checklist, mermaid, QR
 ```
 
-Positional `FILE` is shorthand for `.md` files. Mixed markdown (body + mermaid + QR) auto-selects the `document` template.
+Positional `FILE` is shorthand for `.md` files. Markdown tables render as receipt-friendly columns instead of raw `|` rows. Mixed markdown (body + mermaid + QR) auto-selects the `document` template.
+
+### Enriched markdown text
+
+Use `--markdown` for quick enriched text: headings, checkboxes, tables, links, and inline markdown.
+
+```bash
+printime print --markdown --text $'# Today\n\n**Top risks**\n\n- [ ] Ship docs\n\n| Metric | Owner | Status | Next |\n| --- | --- | --- | --- |\n| Activation | Ana | Green | Watch signups |' --preview
+```
 
 ### Images and diagrams
 
@@ -107,7 +120,7 @@ printime print --test all
 ### print flags
 
 | Flag | Description |
-|------|-------------|
+| ---- | ----------- |
 | `--text`, `-t` | Plain text (no template) |
 | `--qr` | Print QR payload (URL, WiFi, vCard, etc.) |
 | `--qr-size` | QR module size 4–12 (default **8**) |
@@ -214,12 +227,16 @@ For desktop shortcuts, see [HOTKEYS.md](HOTKEYS.md).
 Google Calendar via private ICS URL in `.env`. See [GCAL.md](GCAL.md).
 
 ```bash
+printime agenda --today --preview
 printime agenda --preview
 printime agenda --yes
 printime agenda --days 3 --preview
+printime agenda --days 7 --preview
 printime agenda --next-week --yes
 printime agenda --ics-url 'https://calendar.google.com/calendar/ical/...'
 ```
+
+`--today` is the explicit default one-day agenda. `--days 7` prints this week from today; `--next-week` prints the upcoming Mon-Sun week. Agenda output includes event title, time, location, and notes/details from the calendar description when present.
 
 ---
 

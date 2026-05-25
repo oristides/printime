@@ -89,3 +89,25 @@ graph TD
         page = {'name': 'Login Flow', 'object': {'name': 'Login Flow'}}
         context = {'template': 'document', 'items': [{'text': 'x', 'checked': False}]}
         assert detect_template(page, context) == 'document'
+
+    def test_anytype_table_content_is_rendered_cleanly(self):
+        page = {
+            'name': 'RETROSUM',
+            'markdown': (
+                '|| de   <br> | dsd   <br> | 123   <br> | das     |\n'
+                '|<br> |                                          |\n'
+                '||:----------|:-----------|:-----------|:--------|\n'
+                '|---|                                            |\n'
+                '|| ss   <br> |       <br> |   a   <br> | das     |\n'
+                '|<br> |                                          |\n'
+                '|| wd   <br> |  sa   <br> | 312   <br> | 123     |'
+            ),
+        }
+
+        ctx = page_to_template_context(page, 48)
+        content = ctx.get('content', '')
+
+        assert 'de' in content and 'dsd' in content
+        assert 'ss' in content and 'das' in content
+        assert '<br>' not in content
+        assert '||' not in content

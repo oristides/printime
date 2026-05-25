@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Test suite for printime."""
 
+import re
 import os
 import sys
 
@@ -79,6 +80,36 @@ class TestTemplates:
         assert result is not None
         assert 'TEST NOTE' in result
         assert 'Test content' in result
+
+    def test_key_templates_include_minute_precision_datetime(self):
+        from printime.preview import render_template_for_print
+
+        config = load_config()
+        contexts = {
+            'note': {'title': 'Note', 'content': 'Body'},
+            'checklist': {
+                'title': 'List',
+                'items': [{'text': 'Milk', 'checked': False}],
+            },
+            'message': {'title': 'Message', 'content': 'Hello'},
+            'agenda': {
+                'title': 'Today',
+                'days': [{'label': 'Today', 'events': []}],
+                'empty_message': 'No events scheduled.',
+                'source': 'Google Calendar',
+            },
+        }
+
+        for template_name, context in contexts.items():
+            rendered = render_template_for_print(template_name, context, config)
+            assert re.search(
+                r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}',
+                rendered,
+            ), template_name
+            assert not re.search(
+                r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
+                rendered,
+            ), template_name
 
     def test_load_checklist_template(self):
         config = load_config()
@@ -546,6 +577,7 @@ DTSTART;TZID=America/Sao_Paulo:20260523T090000
 DTEND;TZID=America/Sao_Paulo:20260523T093000
 SUMMARY:Team standup
 LOCATION:Google Meet
+DESCRIPTION:Discuss blockers\\nand launch notes
 END:VEVENT
 BEGIN:VEVENT
 DTSTART;VALUE=DATE:20260523
@@ -563,11 +595,31 @@ END:VCALENDAR
         tz = ZoneInfo('America/Sao_Paulo')
         events = parse_ics_events(self.SAMPLE_ICS, tz)
         assert len(events) == 2
+        standup = next(
+            event for event in events if event.summary == 'Team standup'
+        )
+        assert standup.description == 'Discuss blockers\nand launch notes'
         today = date(2026, 5, 23)
         day_events = events_for_day(events, today)
         assert len(day_events) == 2
         titles = {event.summary for event in day_events}
         assert titles == {'Team standup', 'Birthday'}
+
+    def test_agenda_context_includes_event_notes(self, monkeypatch):
+        from datetime import date
+        from printime.services import gcal
+
+        monkeypatch.setattr(gcal, 'fetch_ics', lambda _url: self.SAMPLE_ICS)
+
+        context = gcal.agenda_to_context(
+            'https://calendar.example/private.ics',
+            timezone='America/Sao_Paulo',
+            start_day=date(2026, 5, 23),
+        )
+
+        event = context['days'][0]['events'][0]
+        assert event['location'] == 'Google Meet'
+        assert event['notes'] == 'Discuss blockers\nand launch notes'
 
     def test_agenda_template_preview(self):
         from printime.preview import render_template_preview
@@ -577,7 +629,13 @@ END:VCALENDAR
             'days': [{
                 'label': 'Today — Saturday, May 23',
                 'events': [
-                    {'time': '09:00', 'title': 'Team standup', 'location': 'Google Meet', 'all_day': False},
+                    {
+                        'time': '09:00',
+                        'title': 'Team standup',
+                        'location': 'Google Meet',
+                        'notes': 'Discuss blockers',
+                        'all_day': False,
+                    },
                 ],
             }],
             'empty_message': 'No events scheduled.',
@@ -586,3 +644,29 @@ END:VCALENDAR
         assert 'Team standup' in rendered
         assert '09:00' in rendered
         assert 'Google Meet' in rendered
+        assert 'Discuss blockers' in rendered
+
+    def test_agenda_today_flag_prints_single_day(self, monkeypatch):
+        import printime.cli as cli
+
+        captured = {}
+
+        def fake_print_agenda(**kwargs):
+            captured.update(kwargs)
+            return True
+
+        monkeypatch.setattr(
+            sys,
+            'argv',
+            ['printime', 'agenda', '--today', '--preview'],
+        )
+        monkeypatch.setattr(
+            'printime.services.gcal.print_agenda',
+            fake_print_agenda,
+        )
+        monkeypatch.setattr(cli, 'load_config', lambda: {'printer': {'width': 48}})
+
+        assert cli.main() is None
+        assert captured['preview'] is True
+        assert captured['days'] == 1
+        assert captured['start_day'] is None

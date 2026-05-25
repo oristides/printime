@@ -128,3 +128,108 @@ class TestStyledHeadings:
         print_styled_lines(printer, lines)
         assert printer.text.call_count == 2
         assert any(call.args[0] == b'\r\n' for call in printer._write.call_args_list)
+
+    def test_markdown_table_renders_as_receipt_table(self):
+        lines = markdown_to_print_lines(
+            '| Header 1 | Header 2 |\n'
+            '| -------- | -------- |\n'
+            '| Cell A   | Cell B   |\n'
+            '| Cell C   | Cell D   |',
+            48,
+        )
+        texts = [line.text for line in lines if line.text]
+
+        assert any('Header 1' in text and 'Header 2' in text for text in texts)
+        assert any('Cell A' in text and 'Cell B' in text for text in texts)
+        assert not any(text.startswith('|') for text in texts)
+        assert not any('-------- | --------' in text for text in texts)
+
+    def test_anytype_table_with_br_markup_renders_cleanly(self):
+        table = (
+            '|| de   <br> | dsd   <br> | 123   <br> | das     |\n'
+            '|<br> |                                          |\n'
+            '||:----------|:-----------|:-----------|:--------|\n'
+            '|---|                                            |\n'
+            '|| ss   <br> |       <br> |   a   <br> | das     |\n'
+            '|<br> |                                          |\n'
+            '|| wd   <br> |  sa   <br> | 312   <br> | 123     |'
+        )
+
+        lines = markdown_to_print_lines(table, 48)
+        texts = [line.text for line in lines if line.text]
+
+        assert any('de' in text and 'dsd' in text for text in texts)
+        assert any(
+            'ss' in text and 'a' in text and 'das' in text
+            for text in texts
+        )
+        assert any(
+            'wd' in text and 'sa' in text and '312' in text
+            for text in texts
+        )
+        assert not any('<br>' in text for text in texts)
+        assert not any(text.startswith('|') for text in texts)
+
+    def test_four_column_table_fits_receipt_width(self):
+        lines = markdown_to_print_lines(
+            '| Metric | Owner | Status | Next |\n'
+            '| --- | --- | --- | --- |\n'
+            '| Activation | Ana | Green | Watch signups |\n'
+            '| Churn | Bob | Yellow | Call accounts |\n'
+            '| Cash | Lia | Red | Cut spend |',
+            48,
+        )
+        texts = [line.text for line in lines if line.text]
+
+        assert any('Metric' in text and 'Owner' in text for text in texts)
+        assert any('Activation' in text and 'Green' in text for text in texts)
+        assert any('Call' in text and 'accounts' in text for text in texts)
+        assert all(len(text) <= 48 for text in texts)
+
+    def test_five_column_table_wraps_cells_to_receipt_width(self):
+        lines = markdown_to_print_lines(
+            '| Area | DRI | Risk | Due | Note |\n'
+            '| --- | --- | --- | --- | --- |\n'
+            '| API | Ana | Low | Mon | Ship |\n'
+            '| Billing | Bob | Medium | Tue | Needs review |\n'
+            '| Support | Lia | High | Fri | Escalate customer issue |',
+            48,
+        )
+        texts = [line.text for line in lines if line.text]
+
+        assert any('Area' in text and 'Risk' in text for text in texts)
+        assert any('Billing' in text and 'Medium' in text for text in texts)
+        assert any('Escalate' in text for text in texts)
+        assert all(len(text) <= 48 for text in texts)
+
+    def test_table_cells_strip_enriched_markdown(self):
+        lines = markdown_to_print_lines(
+            '| **Priority** | ### Owner | Result |\n'
+            '| --- | --- | --- |\n'
+            '| **P0** | ## Ana | `Done` |\n'
+            '| P1 | Bob | [Spec](https://example.com) |',
+            48,
+        )
+        texts = [line.text for line in lines if line.text]
+
+        assert any('Priority' in text and 'Owner' in text for text in texts)
+        assert any('P0' in text and 'Ana' in text and 'Done' in text for text in texts)
+        assert any('Spec' in text for text in texts)
+        assert not any('**' in text or '###' in text or '`' in text for text in texts)
+
+    def test_enriched_markdown_around_table_keeps_headings_and_bold(self):
+        lines = markdown_to_print_lines(
+            '# Weekly Review\n\n'
+            '**Top risks**\n\n'
+            '| Risk | Owner | Status | Action |\n'
+            '| --- | --- | --- | --- |\n'
+            '| Scope | Ana | Yellow | Reduce |\n'
+            '| Launch | Bob | Green | Continue |\n\n'
+            '## Follow up',
+            48,
+        )
+
+        assert any(line.text == 'Weekly Review' for line in lines)
+        assert any(line.text == 'Top risks' and line.bold for line in lines)
+        assert any('Scope' in line.text and 'Yellow' in line.text for line in lines)
+        assert any(line.text == 'Follow up' for line in lines)

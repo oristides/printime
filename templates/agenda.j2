@@ -1,5 +1,9 @@
 {{ "=" * width }}
 {{ title | upper | center(width) }}
+{% if caption %}
+{{ caption | center(width) }}
+{% endif %}
+{{ date | default(now, true) | center(width) }}
 {{ "=" * width }}
 
 {% for day in days %}
@@ -11,7 +15,13 @@
 {% for event in day.events %}
 {{ event.time | ljust(8) }}{{ event.title }}
 {% if event.location %}
-         {{ event.location }}
+         Location: {{ event.location }}
+{% endif %}
+{% set notes_lines = event.notes_lines | default(event.notes.splitlines() if event.notes else [], true) %}
+{% if notes_lines %}
+{% for note_line in notes_lines %}
+         {{ note_line }}
+{% endfor %}
 {% endif %}
 
 {% endfor %}

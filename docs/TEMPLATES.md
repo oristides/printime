@@ -1,6 +1,6 @@
 # Templates
 
-Printime renders **Jinja2 templates** (`.j2` files in `templates/`) using data from markdown frontmatter, inline CLI flags, or JSON/YAML files.
+Printime renders **Jinja2 templates** (`.j2` files in `templates/`) using data from markdown frontmatter, inline CLI flags, or JSON/YAML files. Prefer templates over raw `--text` for user-facing paper because templates provide titles, structured fields, and consistent layout.
 
 List available templates:
 
@@ -13,7 +13,7 @@ printime list document    # fields for one template
 
 Write a `.md` file with optional YAML frontmatter:
 
-```markdown
+````markdown
 ---
 title: Login Flow
 caption: Happy path only
@@ -36,7 +36,7 @@ graph TD
 ```qr --qr-size 10 --center
 "https://example.com"
 ```
-```
+````
 
 Print:
 
@@ -50,16 +50,17 @@ See `examples/diagram_flow.md` for a full mixed-content page.
 ### Frontmatter fields
 
 | Field | Purpose |
-|-------|---------|
+| ----- | ------- |
 | `template` | Force a template (`note`, `document`, `checklist`, …). Auto-detected if omitted. |
 | `title` | Header title (between `====` lines). Falls back to `# Heading` or filename. |
 | `caption` | Subtitle under title in the header block (not a diagram label). |
+| `date` | Override the automatic `YYYY-MM-DD HH:MM` line printed by `note`, `checklist`, `message`, and `agenda`. |
 | Other keys | Map to template variables (`priority`, `tags`, `due_date`, …). |
 
 ### Auto template detection
 
 | Content | Template |
-|---------|----------|
+| ------- | -------- |
 | Mermaid and/or inline QR **plus** body text or checkboxes | `document` |
 | Mermaid only | `diagram` |
 | Checkboxes only | `checklist` |
@@ -69,17 +70,59 @@ See `examples/diagram_flow.md` for a full mixed-content page.
 
 - `#` / `##` / `###` — heading sizes (left-aligned; use `<center>...</center>` to center)
 - `- [ ]` / `- [x]` — checklist items (one line per item on paper)
+- Markdown tables — rendered as compact receipt columns for preview and paper
 - ` ```mermaid ` … ` ``` ` — diagram (rendered via mermaid-cli if installed)
 - Plain ` ``` ` fence with `graph TD` / `flowchart` — also treated as mermaid (Anytype export)
 - ` ```qr [flags] ` … ` ``` ` — inline QR block
 
-**QR fence flags** (same as CLI):
+### Tables
+
+Markdown tables work in `.md` files, `--markdown --text`, and Anytype pages. Anytype table markup with `<br>` line breaks is normalized before rendering.
 
 ```markdown
+| Metric | Owner | Status | Next |
+| --- | --- | --- | --- |
+| Activation | Ana | Green | Watch signups |
+| Churn | Bob | Yellow | Call accounts |
+| Cash | Lia | Red | Cut spend |
+```
+
+```bash
+printime print examples/oriel-mandates.md --preview
+printime print --markdown --text $'## Review\n\n| Area | DRI | Risk | Due | Note |\n| --- | --- | --- | --- | --- |\n| API | Ana | Low | Mon | Ship |\n| Billing | Bob | Medium | Tue | Needs review |' --preview
+```
+
+#### Table limits and recommendations
+
+Printime renders tables for 48-character receipt paper. The renderer removes raw outer pipes, ignores separator rows, normalizes Anytype `<br>` line breaks, and wraps cells so every printed line stays within the paper width.
+
+Recommended table sizes:
+
+- 2 columns: best readability for labels and values; cells can be about 18-22 chars.
+- 3 columns: best default for status tables; cells can be about 12-14 chars.
+- 4 columns: good for compact dashboards; cells should be about 8-10 chars.
+- 5 columns: maximum practical size; use only for dense summaries with short headers and short values.
+
+Limits:
+
+- More than 5 columns is not recommended on 48-character paper. It will render, but cells become too narrow to scan.
+- Long cell text wraps onto continuation lines under the same column. This is acceptable for notes, but it makes dense tables taller.
+- Very long unbroken words, URLs, or IDs are split to fit. Put URLs in QR blocks or link QR output instead of table cells.
+- Markdown table alignment markers (`:---`, `---:`, `:---:`) are accepted but alignment is not preserved; output is left-aligned for scanability.
+- Header cells are bold when the table has a standard separator row.
+- Nested tables, merged cells, multiline markdown inside a single cell, and HTML table tags are not supported. Convert those to lists or multiple smaller tables.
+
+Use tables for short structured data. Use checklists or bullet lists when rows contain sentence-length text.
+
+Inline markdown inside cells is cleaned for paper output, so `**P0**`, `` `Done` ``, `[Spec](https://...)`, and `### Owner` become readable text.
+
+**QR fence flags** (same as CLI):
+
+````markdown
 ```qr --qr-size 10 --center --show-link
 "https://example.com"
 ```
-```
+````
 
 - `--qr-size` — module size 4–12 (default 8)
 - `--center` — center on paper
@@ -89,14 +132,15 @@ See `examples/diagram_flow.md` for a full mixed-content page.
 
 When `title` (and optional `caption`) are set, they print together at the top:
 
-```
+```text
 ================================================
 LOGIN FLOW
 Happy path only
+2026-05-25 12:21
 ================================================
 ```
 
-Body headings (`#`, `##`) print below this block — they do not replace the frontmatter title.
+Body headings (`#`, `##`) print below this block — they do not replace the frontmatter title. The datetime line appears automatically for `note`, `checklist`, `message`, and `agenda`; set `date:` only when you need to override it.
 
 ---
 
@@ -133,9 +177,9 @@ Requires `@mermaid-js/mermaid-cli` (`mmdc` or `npx @mermaid-js/mermaid-cli`).
 
 ## note
 
-Personal note with title, body, optional priority and tags.
+Personal note with title, optional caption, automatic datetime, body, optional priority and tags.
 
-**Fields:** `title`, `content`, `priority`, `tags`
+**Fields:** `title`, `caption`, `date`, `content`, `priority`, `tags`
 
 **Markdown example** (`examples/note.md`):
 
@@ -169,9 +213,9 @@ printime print --template note \
 
 ## checklist
 
-Checkbox list for shopping lists, todos, etc.
+Checkbox list for shopping lists, todos, etc. Includes automatic datetime under the title/caption.
 
-**Fields:** `title`, `items` (each item: `text`, `checked`)
+**Fields:** `title`, `caption`, `date`, `content`, `items` (each item: `text`, `checked`)
 
 **Markdown example** (`examples/checklist.md`):
 
@@ -229,9 +273,9 @@ Note: use `summary` in frontmatter, or set `title` / `# Heading` — it maps to 
 
 ## message
 
-Short message with title and body (simpler than `note` — no priority/tags).
+Short message with title, optional caption, automatic datetime, and body (simpler than `note` — no priority/tags).
 
-**Fields:** `title`, `content`
+**Fields:** `title`, `caption`, `date`, `content`
 
 ---
 
@@ -253,11 +297,11 @@ Receipt-style layout with line items and totals.
 
 ## agenda
 
-Calendar day/week layout with times, event titles, and locations.
+Calendar day/week layout with automatic datetime, event times, titles, locations, and notes/details.
 
-**Fields:** `title`, `days`, `empty_message`, `source`
+**Fields:** `title`, `caption`, `date`, `days`, `empty_message`, `source`
 
-Used automatically by `printime agenda`. See [GCAL.md](GCAL.md).
+Used automatically by `printime agenda`. Each event can include `time`, `title`, `location`, and `notes`. See [GCAL.md](GCAL.md).
 
 ---
 
@@ -271,8 +315,8 @@ Renders LaTeX math to an image and prints it. Requires `pdflatex` and `pdftoppm`
 
 ## Preview vs print
 
-| | Preview | Print |
-|---|---------|-------|
+| Item | Preview | Print |
+| ---- | ------- | ----- |
 | Terminal borders (`\|===\|`) | Yes | No |
 | `[CUT]` tear guide | Yes | No |
 | Template content | Yes | Yes |

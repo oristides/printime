@@ -5,13 +5,7 @@ From zero to a printed note in under a minute.
 ## 1. Install (global CLI)
 
 ```bash
-pipx install -e ~/Documents/repos/random_projects/printime[tickets]
-```
-
-If already installed without ticket support:
-
-```bash
-pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless
+(command -v printime >/dev/null && printime --version) || pipx install -e ~/Documents/repos/random_projects/printime[all] --force; printime doctor
 ```
 
 After code changes:
@@ -43,19 +37,18 @@ sudo usermod -aG lp $USER
 # log out and back in
 ```
 
-## 3. Print plain text (simplest)
+## 3. Print a formatted note
 
-No template, no title bar — just text on paper:
+Prefer templates over raw text. `note`, `checklist`, `message`, and `agenda` add an automatic `YYYY-MM-DD HH:MM` line under the title/subtitle.
 
 ```bash
-printime print --text "Hello world"
-printime print --text "URGENT" --bold --center
-printime print --text "Right side" --center   # centered in 48 columns
+printime print --template note \
+  --title "Quick note" \
+  --content "Call dentist tomorrow at 3pm" \
+  --preview
 ```
 
-Paper is cut automatically at the end (use `--no-cut` to skip).
-
-## 4. Print a formatted note
+## 4. More ways to print
 
 ### Option A — inline (fastest)
 
@@ -111,7 +104,8 @@ printime print --qr 'WIFI:T:WPA;S:MyNetwork;P:password;;'
 Add `GOOGLE_CALENDAR_ICS_URL` to `.env` (see [GCAL.md](GCAL.md)), then:
 
 ```bash
-printime agenda --preview
+printime agenda --today --preview
+printime agenda --days 7 --preview
 printime agenda --next-week --yes
 ```
 
@@ -146,16 +140,17 @@ printime preview --template note --title "Test" --content "Hello"
 
 | Goal | Command |
 |------|---------|
-| **Plain text** | `printime print --text "..."` |
-| Bold / centered text | `printime print --text "..." --bold --center` |
 | Formatted note | `printime print --template note --title "..." --content "..." --preview` |
+| Message | `printime print --template message --title "..." --content "..." --preview` |
 | Note from file | `printime print my-note.md --preview` |
 | Full page (mermaid + QR) | `printime print examples/diagram_flow.md --preview` |
 | QR code | `printime print --qr "https://..."` |
 | Blog / URL | `printime print --url 'https://...' --preview` (link QRs on by default) |
-| Calendar today | `printime agenda --preview` |
+| Calendar today | `printime agenda --today --preview` |
+| Calendar this week | `printime agenda --days 7 --preview` |
 | Calendar next week | `printime agenda --next-week --yes` |
 | Anytype page | `printime anytype print "Page title" --preview` |
+| Plain text fallback | `printime print --text "..."` |
 | CLI help on typos | mistyped flags show `--help` for that command |
 | Skip confirmation | add `--yes` |
 | No paper cut | add `--no-cut` |

@@ -211,6 +211,8 @@ def agenda_to_context(
                     'time': _format_event_time(event),
                     'title': event.summary,
                     'location': event.location,
+                    'notes': event.description,
+                    'notes_lines': event.description.splitlines(),
                     'all_day': event.all_day,
                 }
                 for event in day_events

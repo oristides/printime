@@ -1,5 +1,7 @@
 name: message
-description: Simple short message template
+description: Simple short message template with automatic date
 fields:
   - title
+  - caption
+  - date
   - content

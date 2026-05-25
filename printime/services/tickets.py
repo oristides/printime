@@ -58,7 +58,8 @@ def _require_pdf_deps() -> None:
             'Ticket PDF support requires pymupdf and related packages.\n'
             '  pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless\n'
             '  — or reinstall from repo:\n'
-            '  pipx install -e ~/Documents/repos/random_projects/printime[tickets] --force'
+            '  pipx install -e '
+            '~/Documents/repos/random_projects/printime[all] --force'
         )
     if not HAS_PIL:
         raise ImportError('Ticket PDF support requires pillow')

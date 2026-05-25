@@ -1,7 +1,9 @@
 name: agenda
-description: Calendar agenda with times, titles, and locations
+description: Calendar agenda with automatic date, times, titles, locations, and notes
 fields:
   - title
+  - caption
+  - date
   - days
   - empty_message
   - source

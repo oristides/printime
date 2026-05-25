@@ -1,5 +1,9 @@
 {{ "=" * width }}
 {{ title | upper | center(width) }}
+{% if caption %}
+{{ caption | center(width) }}
+{% endif %}
+{{ date | default(now, true) | center(width) }}
 {{ "=" * width }}
 
 {% if priority %}

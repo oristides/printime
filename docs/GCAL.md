@@ -30,22 +30,28 @@ GOOGLE_CALENDAR_TIMEZONE=America/Sao_Paulo
 ## Commands
 
 ```bash
-printime agenda --preview              # today
+printime agenda --today --preview      # explicit today
+printime agenda --preview              # today (default)
 printime agenda --yes                  # print today
 printime agenda --days 3 --preview     # today + 2 days
-printime agenda --next-week --preview  # Mon–Sun upcoming week
+printime agenda --days 7 --preview     # this week from today
+printime agenda --next-week --preview  # upcoming Mon–Sun week
 printime agenda --next-week --yes
 printime agenda --ics-url 'https://...'  # override .env
 ```
+
+Printed agendas include a generated `YYYY-MM-DD HH:MM` line below the title. Events include time, title, location, and notes/details from the calendar description when present.
 
 ## Example on paper
 
 ```
 ================================================
            TODAY — MONDAY, MAY 26
+              2026-05-25 12:21
 ================================================
 17:00   Meeting
-         Google Meet
+         Location: Google Meet
+         Discuss blockers
 
 21:30   Gym
 

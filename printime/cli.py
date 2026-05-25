@@ -790,7 +790,7 @@ def render_template(template_name, context, config):
     template = env.get_template(f'{template_name}.j2')
 
     width = config['printer']['width']
-    ctx = {'width': width, 'now': datetime.now()}
+    ctx = {'width': width, 'now': datetime.now().strftime('%Y-%m-%d %H:%M')}
     ctx.update(context)
 
     return template.render(**ctx)
@@ -1503,7 +1503,17 @@ def main():
     agenda_parser.add_argument('--preview', '-p', action='store_true', help='Preview before printing')
     agenda_parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
     agenda_parser.add_argument('--days', type=int, default=1, help='Number of days to include (default: 1)')
-    agenda_parser.add_argument('--next-week', action='store_true', help='Print Mon–Sun of the upcoming week')
+    agenda_range = agenda_parser.add_mutually_exclusive_group()
+    agenda_range.add_argument(
+        '--today',
+        action='store_true',
+        help="Print today's agenda (explicit default)",
+    )
+    agenda_range.add_argument(
+        '--next-week',
+        action='store_true',
+        help='Print Mon–Sun of the upcoming week',
+    )
     agenda_parser.add_argument('--ics-url', help='Override GOOGLE_CALENDAR_ICS_URL from .env')
 
     args = parser.parse_args()
@@ -1746,8 +1756,6 @@ def main():
                 print(f" {pin} {row['title']:<38} {row['id']}")
 
     elif args.command == 'agenda':
-        from datetime import date
-
         from printime.services.gcal import next_week_start, print_agenda
 
         start_day = next_week_start() if getattr(args, 'next_week', False) else None

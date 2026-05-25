@@ -6,13 +6,10 @@
 5. Never settle. Is what we can deliver next.(In love with future instead of the past)   
 6. Everyday is your last day at this company don't fear that, be ready to be fired but not regret your ambitions and deliveries.    
 7. Think in the long term   
-8. Be authentic and transparent   
-   
+8. Be authentic and transparent
 
 
-
-
-
-
-
-   
+| Header 1 | Header 2 | 
+| -------- | -------- |
+| Cell A   | Cell B   |
+| Cell C   | Cell D   |

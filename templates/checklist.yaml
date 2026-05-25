@@ -1,6 +1,8 @@
 name: checklist
-description: Task checklist with checkboxes
+description: Task checklist with automatic date and checkboxes
 fields:
   - title
+  - caption
+  - date
   - content
   - items: [{text, checked}]
