@@ -189,9 +189,10 @@ The committed `config/printer.yaml` is **one developer's POS-8370** setup. Your 
 | `KeyError` profile | Use `simple` or a valid escpos profile name |
 | CUPS `idle` | Normal — ready |
 | Garbled text | Set `encoding: cp850` or `ascii` |
-| Ctrl+P garbage | Use `printime print`, not CUPS PDF |
+| Ctrl+P garbage | Use `printime print` — see [HOTKEYS.md](HOTKEYS.md) |
 
 ## Integrations
 
 - [GCAL.md](GCAL.md) — Google Calendar
 - [ANYTYPE.md](ANYTYPE.md) — Anytype Desktop API
+- [HOTKEYS.md](HOTKEYS.md) — shortcuts and app integration

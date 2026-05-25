@@ -22,7 +22,8 @@ tickets = [
     "markitdown[pdf]>=0.1.0",
     "opencv-python-headless>=4.8.0",
 ]
-all = ["printime[tickets,dev]"]
+keep = ["gkeepapi>=0.14.0"]
+all = ["printime[tickets,keep,dev]"]
 
 [project.scripts]
 printime = "printime.cli:main"

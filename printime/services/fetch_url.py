@@ -141,6 +141,11 @@ def article_html_to_text(html: str) -> str:
     return html_to_text(normalize_document_links(html))
 
 
+def _is_keep_url(url: str) -> bool:
+    host = urlparse(url).netloc.lower().removeprefix('www.')
+    return host == 'keep.google.com'
+
+
 def url_to_context(
     url: str,
     width: int = 48,
@@ -152,6 +157,13 @@ def url_to_context(
 ) -> Dict[str, Any]:
     """Fetch a URL and build a note template context."""
     from printime.services.transform import _markdown_body_to_text
+
+    if _is_keep_url(url):
+        raise ValueError(
+            'Google Keep URLs require authentication. Use:\n'
+            f'  printime keep print "{url}" --preview\n'
+            'See docs/KEEP.md for setup.'
+        )
 
     html = fetch_html(url)
 

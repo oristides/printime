@@ -49,9 +49,11 @@ See **[docs/QUICKSTART.md](docs/QUICKSTART.md)** for the full guide.
 | [docs/COMMANDS.md](docs/COMMANDS.md) | Full CLI reference |
 | [docs/TEMPLATES.md](docs/TEMPLATES.md) | Every template and markdown examples |
 | [docs/GCAL.md](docs/GCAL.md) | Google Calendar agenda |
+| [docs/KEEP.md](docs/KEEP.md) | Google Keep notes |
 | [docs/ANYTYPE.md](docs/ANYTYPE.md) | Print Anytype pages |
 | [docs/NATIVE.md](docs/NATIVE.md) | Hotkeys, Ctrl+P vs printime |
-| [skills/printime.md](skills/printime.md) | Agent skill for Cursor / automation |
+| [docs/HOTKEYS.md](docs/HOTKEYS.md) | Desktop shortcuts and app integration |
+| [skills/printime-cli/SKILL.md](skills/printime-cli/SKILL.md) | Agent skill for Cursor / automation |
 
 ## Common commands
 

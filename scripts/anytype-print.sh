@@ -14,4 +14,11 @@ if [[ -z "$TITLE" ]]; then
   exit 1
 fi
 
-exec printime anytype print "$TITLE" --yes
+EXTRA=()
+if [[ "${PRINTIME_YES:-}" == "1" ]]; then
+  EXTRA=(--yes)
+else
+  EXTRA=(--preview)
+fi
+
+exec printime anytype print "$TITLE" "${EXTRA[@]}"

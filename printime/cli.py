@@ -1486,6 +1486,19 @@ def main():
     anytype_print.add_argument('--preview', '-p', action='store_true', help='Preview before print')
     anytype_print.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
 
+    keep_parser = subparsers.add_parser('keep', help='Google Keep integration')
+    PARSER_REGISTRY['keep'] = keep_parser
+    keep_sub = keep_parser.add_subparsers(dest='keep_cmd', parser_class=HelpfulArgumentParser)
+    keep_list = keep_sub.add_parser('list', help='List recent Keep notes')
+    keep_search = keep_sub.add_parser('search', help='Search Keep notes by title/text')
+    keep_search.add_argument('query', help='Search text')
+    keep_print = keep_sub.add_parser('print', help='Print a note by URL or ID')
+    PARSER_REGISTRY['keep.print'] = keep_print
+    keep_print.add_argument('target', help='Keep URL (#NOTE/...) or note ID')
+    keep_print.add_argument('--template', '-t', help='Template to use')
+    keep_print.add_argument('--preview', '-p', action='store_true', help='Preview before print')
+    keep_print.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
+
     agenda_parser = subparsers.add_parser('agenda', help="Print Google Calendar agenda")
     agenda_parser.add_argument('--preview', '-p', action='store_true', help='Preview before printing')
     agenda_parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
@@ -1682,6 +1695,55 @@ def main():
                 return 1
         elif args.anytype_cmd == 'list':
             list_spaces()
+
+    elif args.command == 'keep':
+        if args.keep_cmd is None:
+            keep_parser.print_help()
+            print(
+                '\nExamples:\n'
+                '  printime keep print "https://keep.google.com/#NOTE/abc..." --preview\n'
+                '  printime keep search "shopping"\n'
+                '  printime keep list',
+                file=sys.stderr,
+            )
+            return 2
+        from printime.services.keep import list_notes, print_keep_note, search_notes
+
+        if args.keep_cmd == 'print':
+            try:
+                print_keep_note(
+                    args.target,
+                    preview=getattr(args, 'preview', False),
+                    yes=getattr(args, 'yes', False),
+                    template=getattr(args, 'template', None),
+                    config=config,
+                )
+            except ImportError as exc:
+                print(f'Error: {exc}', file=sys.stderr)
+                return 1
+            except ValueError as exc:
+                print(f'Error: {exc}', file=sys.stderr)
+                return 1
+        elif args.keep_cmd == 'search':
+            try:
+                hits = search_notes(args.query)
+            except (ImportError, ValueError) as exc:
+                print(f'Error: {exc}', file=sys.stderr)
+                return 1
+            if not hits:
+                print(f'No Keep notes for: {args.query!r}')
+                return 1
+            for row in hits:
+                print(f"  {row['title']:<40} {row['id']}")
+        elif args.keep_cmd == 'list':
+            try:
+                rows = list_notes()
+            except (ImportError, ValueError) as exc:
+                print(f'Error: {exc}', file=sys.stderr)
+                return 1
+            for row in rows:
+                pin = '*' if row['pinned'] else ' '
+                print(f" {pin} {row['title']:<38} {row['id']}")
 
     elif args.command == 'agenda':
         from datetime import date

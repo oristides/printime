@@ -205,6 +205,8 @@ printime serve --port 8080
 
 Note: `serve` QR uses simple mode (not the full `SCAN ME` layout from CLI `--qr` yet).
 
+For desktop shortcuts, see [HOTKEYS.md](HOTKEYS.md).
+
 ---
 
 ## agenda

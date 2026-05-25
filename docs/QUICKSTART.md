@@ -166,5 +166,6 @@ printime preview --template note --title "Test" --content "Hello"
 - [COMMANDS.md](COMMANDS.md) — full CLI reference
 - [TEMPLATES.md](TEMPLATES.md) — templates and frontmatter
 - [CONFIG.md](CONFIG.md) — printer configuration
+- [HOTKEYS.md](HOTKEYS.md) — shortcuts for Anytype, URLs, tickets
 - [GCAL.md](GCAL.md) — Google Calendar setup
 - [ANYTYPE.md](ANYTYPE.md) — Anytype integration

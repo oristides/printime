@@ -73,3 +73,15 @@ class TestFetchUrlLinks:
         assert '██' in preview
         assert '[QR]' in preview
         assert preview.count('[QR]') >= 2
+
+    def test_keep_url_points_to_keep_command(self):
+        from printime.services.fetch_url import url_to_context
+        import pytest
+
+        with pytest.raises(ValueError, match='keep print'):
+            url_to_context(
+                'https://keep.google.com/#NOTE/abc123',
+                48,
+                max_chars=100,
+                link_qr=False,
+            )
