@@ -24,14 +24,17 @@ def parse_preview_lines(preview_text: str) -> List[str]:
 
 
 def summarize_preview(preview_text: str) -> Dict[str, Any]:
-    """Structured summary for agents to verify layout without re-parsing manually."""
+    """Structured summary for agents to verify layout."""
     plain = strip_ansi(preview_text)
     inner = parse_preview_lines(preview_text)
     qr_blocks = plain.count('██')
     return {
         'line_count': len(inner),
         'has_cut_guide': '[CUT]' in plain,
-        'has_title_block': '====' in plain.replace('=', '') or bool(re.search(r'\|={10,}', plain)),
+        'has_title_block': (
+            '====' in plain.replace('=', '')
+            or bool(re.search(r'\|={10,}', plain))
+        ),
         'qr_module_lines': sum(1 for line in inner if '██' in line),
         'qr_estimated_modules': qr_blocks // 2,
         'contains_unicode': any(ord(c) > 127 for c in plain),
@@ -60,7 +63,7 @@ def render_and_summarize(
     *,
     width: int = 48,
 ) -> Dict[str, Any]:
-    """Render template preview and return text + summary for agent verification."""
+    """Render template preview and return text plus summary."""
     from printime.preview import render_template_preview
 
     if config is None:
@@ -72,8 +75,12 @@ def render_and_summarize(
     return {'preview': text, 'summary': summary, 'ok': not summary['issues']}
 
 
-def capture_cli_preview(argv: List[str], *, cwd: Optional[str] = None) -> Dict[str, Any]:
-    """Run printime CLI with --preview --yes and capture stdout summary."""
+def capture_cli_preview(
+    argv: List[str],
+    *,
+    cwd: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Run printime CLI with --preview and capture stdout summary."""
     result = subprocess.run(
         ['printime', *argv],
         capture_output=True,
@@ -94,7 +101,11 @@ def read_preview(preview_text: str) -> str:
     """Human/agent readable digest of a preview."""
     s = summarize_preview(preview_text)
     lines = [
-        f"lines={s['line_count']} qr_rows={s['qr_module_lines']} cut={s['has_cut_guide']}",
+        (
+            f"lines={s['line_count']} "
+            f"qr_rows={s['qr_module_lines']} "
+            f"cut={s['has_cut_guide']}"
+        ),
         f"unicode={s['contains_unicode']} issues={s['issues'] or 'none'}",
         '--- sample ---',
     ]

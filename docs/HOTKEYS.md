@@ -13,7 +13,7 @@ Do **not** use Ctrl+P to the raw **POS8370** CUPS queue (PDF garbage on thermal)
 ```bash
 printime <subcommand> … --preview    # see paper simulation
 # confirm, then:
-printime <subcommand> … --yes        # print without prompt
+printime <subcommand> … --yes        # print immediately
 ```
 
 Agents should use **`--preview`** and read the output (see `preview_capture` in the skill).
@@ -30,7 +30,7 @@ Bind these in **Settings → Keyboard → Custom shortcuts**.
 | `Ctrl+Shift+U` | URL in clipboard → blog/article | `~/Documents/repos/random_projects/printime/scripts/print-url.sh` |
 | `Ctrl+Shift+T` | Ticket PDF path in clipboard | `~/Documents/repos/random_projects/printime/scripts/print-ticket.sh` |
 
-Scripts use **`--preview`** by default. Set `PRINTIME_YES=1` to skip confirmation.
+Scripts use **`--preview`** by default. Set `PRINTIME_YES=1` to print immediately.
 
 ### Anytype (included)
 
@@ -71,14 +71,14 @@ printime serve --port 8080
 ### Shell / Python
 
 ```bash
-printime print --ticket "$PDF" --preview --yes
-printime print --url "$URL" --preview --yes
+printime print --ticket "$PDF" --preview
+printime print --url "$URL" --preview
 ```
 
 ```python
 from printime.preview_capture import capture_cli_preview, read_preview
 
-cap = capture_cli_preview(['print', '--url', url, '--preview', '--yes'])
+cap = capture_cli_preview(['print', '--url', url, '--preview'])
 print(read_preview(cap['preview']))
 ```
 

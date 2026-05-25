@@ -152,6 +152,42 @@ class TestPreviewRendering:
         assert '[ ]' in result
         assert '[CUT]' in result
 
+    def test_print_template_preview_only_does_not_print(self, monkeypatch):
+        from unittest.mock import MagicMock
+        import printime.cli as cli
+
+        printed = []
+        monkeypatch.setattr(cli, 'print_rendered', lambda *args, **kwargs: printed.append(args))
+
+        cli._print_template(
+            MagicMock(),
+            {'printer': {'width': 48}},
+            'note',
+            {'title': 'Preview', 'content': 'Only'},
+            preview=True,
+            yes=False,
+        )
+
+        assert not printed
+
+    def test_print_template_preview_yes_prints_after_preview(self, monkeypatch):
+        from unittest.mock import MagicMock
+        import printime.cli as cli
+
+        printed = []
+        monkeypatch.setattr(cli, 'print_rendered', lambda *args, **kwargs: printed.append(args))
+
+        cli._print_template(
+            MagicMock(),
+            {'printer': {'width': 48}},
+            'note',
+            {'title': 'Preview', 'content': 'Then print'},
+            preview=True,
+            yes=True,
+        )
+
+        assert printed
+
 
 class TestMarkdownContext:
     def test_load_markdown_context(self):

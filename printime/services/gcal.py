@@ -248,7 +248,7 @@ def print_agenda(
     config: Optional[Dict[str, Any]] = None,
 ) -> bool:
     from printime.cli import create_printer, finish_job, load_config, print_rendered, render_for_print
-    from printime.preview import confirm, render_template_preview
+    from printime.preview import render_template_preview
 
     cfg = config or load_config()
     cal_cfg = get_calendar_config()
@@ -272,7 +272,7 @@ def print_agenda(
     if preview:
         rendered = render_template_preview('agenda', context)
         print(rendered)
-        if yes or confirm('Print this?'):
+        if yes:
             printer = create_printer(cfg)
             try:
                 result = render_for_print('agenda', context, cfg)
@@ -282,7 +282,7 @@ def print_agenda(
             finally:
                 finish_job(printer)
         else:
-            print('Cancelled')
+            print('Preview only. Add --yes to print.')
         return True
 
     printer = create_printer(cfg)

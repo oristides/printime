@@ -75,6 +75,7 @@ printime print --help                                # flags + examples on typos
 ## Preview vs print
 
 - **Preview** shows a terminal simulation with paper borders and a `[CUT]` tear guide.
+- `--preview` is preview-only. Add `--yes` to print after preview.
 - **Print** sends only the template text to the printer. `[CUT]` is never printed; the printer cuts at the end.
 
 ## Examples

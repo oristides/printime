@@ -136,8 +136,8 @@ printime print --test all
 | `--tags` | Comma-separated tags |
 | `--file`, `-f` | Context file |
 | `--md` | Markdown file |
-| `--preview`, `-p` | Preview and confirm |
-| `--yes`, `-y` | Skip confirmation |
+| `--preview`, `-p` | Render terminal preview only; no paper by itself |
+| `--yes`, `-y` | Print immediately, or print after `--preview` |
 | `--no-cut` | Do not cut paper |
 | `--bold` | Bold (with `--text`) |
 | `--center` | Center (with `--text`) |
@@ -147,13 +147,21 @@ printime print --test all
 
 ## preview
 
-Show terminal preview. Confirms before printing unless you decline.
+Show terminal preview. It does not print paper unless you also pass `--yes`.
 
 ```bash
 printime preview --file examples/note.md
 printime preview --template note --title "Test" --content "Hello"
 printime preview --text "Raw line"
 ```
+
+Preview behavior is explicit:
+
+| Command form | Behavior |
+| ------------ | -------- |
+| `printime print notes.md --preview` | Show preview only; no paper. |
+| `printime print notes.md --preview --yes` | Show preview, then print paper. |
+| `printime print notes.md --yes` | Print paper immediately without preview. |
 
 ---
 

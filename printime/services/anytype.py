@@ -268,8 +268,13 @@ def find_page_by_query(query: str) -> Optional[Dict[str, Any]]:
     return hits[0]
 
 
-def print_page_by_query(query: str, template: Optional[str] = None,
-                        preview: bool = False, config: Optional[Dict] = None) -> bool:
+def print_page_by_query(
+    query: str,
+    template: Optional[str] = None,
+    preview: bool = False,
+    config: Optional[Dict] = None,
+    yes: bool = False,
+) -> bool:
     """Search Anytype by title and print the best match."""
     obj = find_page_by_query(query)
     if not obj:
@@ -279,7 +284,14 @@ def print_page_by_query(query: str, template: Optional[str] = None,
     page_id = obj['id']
     space_id = obj.get('space_id')
     print(f"Matched: {obj.get('name')!r} ({page_id})")
-    return print_page(page_id, template=template, space_id=space_id, preview=preview, config=config)
+    return print_page(
+        page_id,
+        template=template,
+        space_id=space_id,
+        preview=preview,
+        config=config,
+        yes=yes,
+    )
 
 
 def normalize_anytype_markdown(text: str) -> str:
@@ -428,7 +440,7 @@ def main():
     parser.add_argument('page_id', nargs='?', help='Object ID')
     parser.add_argument('--space', '-s', help='Space ID (optional — searches all joined spaces by default)')
     parser.add_argument('--template', '-t', help='Template to use')
-    parser.add_argument('--preview', '-p', action='store_true', help='Preview before print')
+    parser.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
 
     args = parser.parse_args()
 

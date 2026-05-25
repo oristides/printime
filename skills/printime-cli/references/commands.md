@@ -50,8 +50,8 @@ Common flags:
 | `--image` | Print PNG/JPG. |
 | `--mermaid` | Render `.mmd` and print image. |
 | `--max-chars` | URL article limit; `0` means no limit. |
-| `--preview`, `-p` | Preview before printing. |
-| `--yes`, `-y` | Skip confirmation. |
+| `--preview`, `-p` | Render terminal preview only; no paper by itself. |
+| `--yes`, `-y` | Print immediately, or print after `--preview`. |
 | `--no-cut` | Do not cut paper. |
 | `--test` | `qr`, `text`, or `all`. |
 
@@ -71,7 +71,8 @@ printime print --text "Hello"  # raw text fallback only
 
 ## `preview`
 
-Render terminal output and optionally confirm a print.
+Render terminal output. Add `--yes` only when you want physical paper after
+the preview.
 
 ```bash
 printime preview --file examples/note.md

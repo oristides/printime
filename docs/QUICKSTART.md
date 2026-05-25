@@ -134,7 +134,9 @@ printime preview --file examples/note.md
 printime preview --template note --title "Test" --content "Hello"
 ```
 
-`[CUT]` in preview is a tear guide — **not** printed on paper.
+`--preview` and `printime preview` render terminal output only. They do not
+print paper unless you also pass `--yes`; `[CUT]` is a tear guide, **not**
+printed text.
 
 ## Cheat sheet
 
@@ -152,7 +154,7 @@ printime preview --template note --title "Test" --content "Hello"
 | Anytype page | `printime anytype print "Page title" --preview` |
 | Plain text fallback | `printime print --text "..."` |
 | CLI help on typos | mistyped flags show `--help` for that command |
-| Skip confirmation | add `--yes` |
+| Print after preview | add `--yes` |
 | No paper cut | add `--no-cut` |
 | List templates | `printime list` |
 

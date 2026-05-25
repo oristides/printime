@@ -57,9 +57,12 @@ Prefer templates over raw text. Templates provide title blocks, automatic minute
 The CLI is paper-producing software. Agents should treat physical printing as a side effect.
 
 - Use `--template note`, markdown files, or integration-specific templates before falling back to pure `--text`.
-- Use `--preview` before printing unless the user explicitly asks to print now.
+- Use `--preview` to inspect output only. It does not print paper by itself.
 - Read the preview output; check title blocks, QR size, Unicode, section order, and `[CUT]`.
-- Use `--yes` only after preview approval, explicit user confirmation, cron, or other unattended automation.
+- Use `--yes` only after preview approval, explicit user confirmation, cron,
+  or other unattended automation. With `--preview --yes`, printime previews
+  first and then prints.
+- Omit `--preview` only when the user explicitly wants immediate physical printing.
 - Never commit `.env`; it may contain Anytype keys, Google Calendar ICS URLs, and Google Keep master tokens.
 - Run `printime doctor` before troubleshooting printer or USB failures.
 
@@ -119,6 +122,10 @@ printime print --template note --title "Today" --content "Ship docs" --preview
 printime print notes.md --preview
 printime print notes.md --yes
 ```
+
+`--preview` is the safe default for agents: it renders the terminal receipt
+and stops. No physical paper is printed unless the command also includes
+`--yes`, or unless you run the print command without `--preview`.
 
 **Tables and enriched markdown:**
 

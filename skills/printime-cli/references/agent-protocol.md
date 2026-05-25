@@ -1,6 +1,8 @@
 # Agent Protocol
 
 Printime creates physical output, so previews are the default safety step for agents.
+`--preview` renders the receipt in the terminal and stops. It does not print paper unless
+you also pass `--yes`.
 
 ## Safe Print Workflow
 
@@ -17,6 +19,15 @@ printime print notes.md --yes
 
 `[CUT]` is a preview marker only. It is not printed as text.
 
+## Preview vs Print
+
+| Command form | Behavior |
+| ------------ | -------- |
+| `printime print notes.md --preview` | Show preview only; no paper. |
+| `printime print notes.md --preview --yes` | Show preview, then print paper. |
+| `printime print notes.md --yes` | Print paper immediately without preview. |
+| `printime print notes.md` | Print paper immediately using the normal print path. |
+
 ## Programmatic Preview Capture
 
 Use this when an agent needs to inspect a preview before deciding whether to print:
@@ -24,7 +35,7 @@ Use this when an agent needs to inspect a preview before deciding whether to pri
 ```python
 from printime.preview_capture import capture_cli_preview, read_preview
 
-cap = capture_cli_preview(["print", "ticket.pdf", "--preview", "--yes"])
+cap = capture_cli_preview(["print", "ticket.pdf", "--preview"])
 print(read_preview(cap["preview"]))
 ```
 
@@ -53,6 +64,5 @@ Use `--yes` for:
 - User-confirmed print after preview.
 - "Print now" requests where the user explicitly wants physical paper.
 - Cron jobs or trusted automation.
-- Capturing a non-interactive preview in scripts with `--preview --yes`.
 
 Do not add `--yes` just to avoid reading the preview.

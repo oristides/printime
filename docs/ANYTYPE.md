@@ -87,7 +87,7 @@ printime anytype print "Login Flow" --preview
 printime anytype list                              # spaces
 printime anytype search "query"                    # find pages
 printime anytype print "Page title" --preview      # search + print best match
-printime anytype print "Page title" --yes          # skip confirmation
+printime anytype print "Page title" --yes          # print immediately
 printime anytype fetch <object-id> --preview       # by ID
 printime anytype join '<invite-link>'              # bot API only
 printime anytype --help                            # subcommands

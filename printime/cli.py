@@ -434,15 +434,15 @@ def _resolve_context_image(context: dict, config) -> str | None:
 
 
 def _print_image_job(printer, config, image_path: str, args, *, label: str = 'Image') -> None:
-    from printime.preview import confirm, render_image_preview
+    from printime.preview import render_image_preview
 
     width = config['printer']['width']
     title = getattr(args, 'title', None)
     caption = getattr(args, 'content', None)
     if args.preview:
         print(render_image_preview(image_path, title=title, caption=caption, width=width))
-        if not (getattr(args, 'yes', False) or confirm('Print this?')):
-            print('Cancelled')
+        if not getattr(args, 'yes', False):
+            print('Preview only. Add --yes to print.')
             return
     print_image_page(
         printer, config, image_path,
@@ -906,7 +906,7 @@ def _print_template(
     png_path: str | None = None,
     label: str = 'Template',
 ) -> None:
-    from printime.preview import confirm, render_template_preview
+    from printime.preview import render_template_preview
     from printime.styled import STYLED_CONTENT_MARKER
 
     if _uses_segment_print(context, template_name):
@@ -915,8 +915,8 @@ def _print_template(
         if preview:
             rendered = render_template_preview(template_name, ctx)
             print(rendered)
-            if not (yes or confirm('Print this?')):
-                print('Cancelled')
+            if not yes:
+                print('Preview only. Add --yes to print.')
                 return
         print_segments(
             printer, config, template_name, ctx, cut=not no_cut,
@@ -935,8 +935,8 @@ def _print_template(
             styled_field=styled_field,
         )
         print(rendered)
-        if not (yes or confirm('Print this?')):
-            print('Cancelled')
+        if not yes:
+            print('Preview only. Add --yes to print.')
             return
 
     print_ctx = dict(render_ctx)
@@ -1112,7 +1112,7 @@ def cmd_print(args, config, printer):
         return
 
     if args.text:
-        from printime.preview import confirm, render_styled_text_preview, render_text_preview
+        from printime.preview import render_styled_text_preview, render_text_preview
         from printime.services.enrich import looks_like_markdown
         from printime.styled import markdown_to_print_lines
 
@@ -1134,8 +1134,8 @@ def cmd_print(args, config, printer):
             from printime.preview import _render_segments_preview
             if args.preview:
                 print(_render_segments_preview(context, width=width))
-                if not (getattr(args, 'yes', False) or confirm('Print this?')):
-                    print('Cancelled')
+                if not getattr(args, 'yes', False):
+                    print('Preview only. Add --yes to print.')
                     return
             print_segments(printer, config, 'document', context, cut=not args.no_cut)
             print('Text printed')
@@ -1145,8 +1145,8 @@ def cmd_print(args, config, printer):
             lines = markdown_to_print_lines(args.text, width)
             if args.preview:
                 print(render_styled_text_preview(lines, width=width))
-                if not (getattr(args, 'yes', False) or confirm('Print this?')):
-                    print('Cancelled')
+                if not getattr(args, 'yes', False):
+                    print('Preview only. Add --yes to print.')
                     return
             print_styled_lines(printer, lines, width=width)
             if not args.no_cut:
@@ -1159,8 +1159,8 @@ def cmd_print(args, config, printer):
             print(render_text_preview(
                 args.text, width=width, bold=args.bold, align=align,
             ))
-            if not (getattr(args, 'yes', False) or confirm('Print this?')):
-                print('Cancelled')
+            if not getattr(args, 'yes', False):
+                print('Preview only. Add --yes to print.')
                 return
         printer.text(args.text, bold=args.bold, align=align)
         if not args.no_cut:
@@ -1424,9 +1424,9 @@ def main():
     print_parser.add_argument('--bold', action='store_true', help='Bold text')
     print_parser.add_argument('--center', action='store_true', help='Center align')
     print_parser.add_argument('--double-height', action='store_true', help='Double height text')
-    print_parser.add_argument('--preview', '-p', action='store_true', help='Preview before printing')
+    print_parser.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
     print_parser.add_argument('--no-cut', action='store_true', help='Do not cut paper')
-    print_parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
+    print_parser.add_argument('--yes', '-y', action='store_true', help='Print immediately, or print after preview')
     print_parser.add_argument('--test', choices=['qr', 'text', 'all'], help='Run test print')
 
     serve_parser = subparsers.add_parser('serve', help='Start HTTP server')
@@ -1451,7 +1451,7 @@ def main():
     preview_parser.add_argument('--content', help='Content for template preview')
     preview_parser.add_argument('--file', '-f', help='Context file (.md, .json, or .yaml)')
     preview_parser.add_argument('--no-cut', action='store_true', help='Do not cut paper after printing')
-    preview_parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
+    preview_parser.add_argument('--yes', '-y', action='store_true', help='Print after preview')
 
     transform_parser = subparsers.add_parser('transform', help='Transform file to print format')
     transform_parser.add_argument('input', nargs='?', help='Input file path (.md, .tex, .txt)')
@@ -1462,8 +1462,8 @@ def main():
     transform_parser.add_argument('--url', help='Fetch a web article instead of a local file')
     transform_parser.add_argument('--max-chars', type=int, default=12000,
                                   help='Max article characters for --url (0 = no limit)')
-    transform_parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
-    transform_parser.add_argument('--preview', '-p', action='store_true', help='Preview before print')
+    transform_parser.add_argument('--yes', '-y', action='store_true', help='Print after preview')
+    transform_parser.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
 
     anytype_parser = subparsers.add_parser('anytype', help='Anytype integration')
     PARSER_REGISTRY['anytype'] = anytype_parser
@@ -1476,15 +1476,15 @@ def main():
     anytype_fetch.add_argument('page_id', help='Page ID to fetch')
     anytype_fetch.add_argument('--space', '-s', help='Space ID (optional; searches all joined spaces by default)')
     anytype_fetch.add_argument('--template', '-t', help='Template to use')
-    anytype_fetch.add_argument('--preview', '-p', action='store_true', help='Preview before print')
+    anytype_fetch.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
     anytype_search = anytype_sub.add_parser('search', help='Search pages across all spaces')
     anytype_search.add_argument('query', help='Search text')
     anytype_print = anytype_sub.add_parser('print', help='Search by title and print')
     PARSER_REGISTRY['anytype.print'] = anytype_print
     anytype_print.add_argument('query', help='Page title or search text')
     anytype_print.add_argument('--template', '-t', help='Template to use')
-    anytype_print.add_argument('--preview', '-p', action='store_true', help='Preview before print')
-    anytype_print.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
+    anytype_print.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
+    anytype_print.add_argument('--yes', '-y', action='store_true', help='Print after preview')
 
     keep_parser = subparsers.add_parser('keep', help='Google Keep integration')
     PARSER_REGISTRY['keep'] = keep_parser
@@ -1496,12 +1496,12 @@ def main():
     PARSER_REGISTRY['keep.print'] = keep_print
     keep_print.add_argument('target', help='Keep URL (#NOTE/...) or note ID')
     keep_print.add_argument('--template', '-t', help='Template to use')
-    keep_print.add_argument('--preview', '-p', action='store_true', help='Preview before print')
-    keep_print.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
+    keep_print.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
+    keep_print.add_argument('--yes', '-y', action='store_true', help='Print after preview')
 
     agenda_parser = subparsers.add_parser('agenda', help="Print Google Calendar agenda")
-    agenda_parser.add_argument('--preview', '-p', action='store_true', help='Preview before printing')
-    agenda_parser.add_argument('--yes', '-y', action='store_true', help='Skip confirmation')
+    agenda_parser.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
+    agenda_parser.add_argument('--yes', '-y', action='store_true', help='Print after preview')
     agenda_parser.add_argument('--days', type=int, default=1, help='Number of days to include (default: 1)')
     agenda_range = agenda_parser.add_mutually_exclusive_group()
     agenda_range.add_argument(
@@ -1540,7 +1540,7 @@ def main():
         return cmd_list(args)
 
     elif args.command == 'preview':
-        from printime.preview import render_template_preview, confirm
+        from printime.preview import render_template_preview
         context = {}
         if args.file:
             try:
@@ -1569,7 +1569,7 @@ def main():
                 bold=getattr(args, 'bold', False),
                 align=align,
             ))
-            if auto_yes or confirm("Print this?"):
+            if auto_yes:
                 printer = create_printer(config)
                 try:
                     printer.text(args.text, bold=getattr(args, 'bold', False), align='center' if getattr(args, 'center', False) else 'left')
@@ -1578,10 +1578,12 @@ def main():
                 finally:
                     finish_job(printer)
                 print("Printed successfully")
+            else:
+                print("Preview only. Add --yes to print.")
         elif args.file or context or getattr(args, 'title', None) or getattr(args, 'content', None):
             rendered = render_template_preview(template_name, context)
             print(rendered)
-            if auto_yes or confirm("Print this?"):
+            if auto_yes:
                 try:
                     printer = create_printer(config)
                     result = render_for_print(template_name, context, config)
@@ -1591,6 +1593,8 @@ def main():
                 except Exception as e:
                     print(f"Print failed: {e}", file=sys.stderr)
                     return 1
+            else:
+                print("Preview only. Add --yes to print.")
         else:
             print("Use --text or --template with --file")
 
@@ -1635,12 +1639,12 @@ def main():
 
         # If template specified, render with template
         if args.template and result['type'] == 'context':
-            from printime.preview import render_template_preview, confirm
+            from printime.preview import render_template_preview
             template_name = args.template or result['content'].get('template', 'note')
             rendered = render_template_preview(template_name, result['content'])
             print(rendered)
             auto_yes = getattr(args, 'yes', False)
-            if auto_yes or getattr(args, 'preview', False) and confirm("Print this?"):
+            if auto_yes:
                 try:
                     printer = create_printer(config)
                     tmpl_result = render_for_print(template_name, result['content'], config)
@@ -1655,7 +1659,7 @@ def main():
                     print(f"Print failed: {e}", file=sys.stderr)
                     return 1
             elif getattr(args, 'preview', False):
-                print("Cancelled")
+                print("Preview only. Add --yes to print.")
 
     elif args.command == 'anytype':
         if args.anytype_cmd is None:
@@ -1680,6 +1684,7 @@ def main():
                 args.query,
                 template=getattr(args, 'template', None),
                 preview=getattr(args, 'preview', False),
+                yes=getattr(args, 'yes', False),
                 config=config,
             )
             if not ok:

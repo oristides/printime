@@ -168,7 +168,7 @@ print(result['preview'])                 # full bordered preview
 Or CLI:
 
 ```bash
-printime print --ticket ticket.pdf --preview --yes 2>&1 | tee /tmp/preview.txt
+printime print --ticket ticket.pdf --preview 2>&1 | tee /tmp/preview.txt
 ```
 
 ---
