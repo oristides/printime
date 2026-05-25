@@ -308,7 +308,14 @@ def _page_markdown_source(obj: Dict[str, Any]) -> str:
     return normalize_anytype_markdown(combined)
 
 
-def page_to_template_context(page: Dict[str, Any], width: int = 48) -> Dict[str, Any]:
+def page_to_template_context(
+    page: Dict[str, Any],
+    width: int = 48,
+    *,
+    link_qr: bool = True,
+    link_qr_size: int = 4,
+    link_qr_align: str = 'left',
+) -> Dict[str, Any]:
     """Convert Anytype API response to printime template context."""
     obj = page.get('object', page)
 
@@ -319,7 +326,14 @@ def page_to_template_context(page: Dict[str, Any], width: int = 48) -> Dict[str,
         from printime.services.transform import _split_frontmatter, markdown_to_context
 
         meta, _ = _split_frontmatter(markdown)
-        context = markdown_to_context(markdown, name, width)
+        context = markdown_to_context(
+            markdown,
+            name,
+            width,
+            link_qr=link_qr,
+            link_qr_size=link_qr_size,
+            link_qr_align=link_qr_align,
+        )
         if not meta.get('title'):
             context['title'] = name
     else:
@@ -386,7 +400,10 @@ def print_page(page_id: str, template: Optional[str] = None, space_id: Optional[
         config = load_config()
 
     width = config['printer']['width']
-    context = page_to_template_context(page, width)
+    from printime.services.link_qr import link_qr_kwargs_from_config
+
+    lq = link_qr_kwargs_from_config(config)
+    context = page_to_template_context(page, width, **lq)
     template = template or detect_template(page, context)
 
     print(f"Using template: {template}")

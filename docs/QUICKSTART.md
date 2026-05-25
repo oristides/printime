@@ -152,7 +152,7 @@ printime preview --template note --title "Test" --content "Hello"
 | Note from file | `printime print my-note.md --preview` |
 | Full page (mermaid + QR) | `printime print examples/diagram_flow.md --preview` |
 | QR code | `printime print --qr "https://..."` |
-| Blog / URL | `printime print --url 'https://...' --preview` |
+| Blog / URL | `printime print --url 'https://...' --preview` (link QRs on by default) |
 | Calendar today | `printime agenda --preview` |
 | Calendar next week | `printime agenda --next-week --yes` |
 | Anytype page | `printime anytype print "Page title" --preview` |

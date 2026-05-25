@@ -37,10 +37,11 @@ def truncate_text(text: str, width: int = INNER_WIDTH) -> str:
     return text[:width - 3] + '...'
 
 
-def sanitize_printer_text(text: str) -> str:
-    """Prepare text for thermal print (cp850 Latin; fallback ascii)."""
+def sanitize_printer_text(text: str, encoding: str = 'cp850') -> str:
+    """Prepare text for thermal print using configured code page."""
     from printime.text_encoding import sanitize_printer_text as _encode
-    return _encode(text, encoding='cp850')
+
+    return _encode(text, encoding=encoding)
 
 
 def normalize_preview_text(text: str) -> str:
@@ -226,6 +227,7 @@ def _append_qr_preview(
     qr_size: int = 8,
     paper_width_pixels: int = 576,
     center: bool = True,
+    align: str | None = None,
 ) -> None:
     from printime.preview_qr import render_qr_ascii
 
@@ -237,6 +239,7 @@ def _append_qr_preview(
         paper_width_pixels=paper_width_pixels,
         paper_cols=width,
         center=center,
+        align=align,
     ):
         preview._add_line(line)
     preview._add_blank()
@@ -268,13 +271,16 @@ def _render_segments_preview(context: dict, width: int = INNER_WIDTH) -> str:
 
             data = seg.get('data', '')
             size = seg.get('qr_size', QR_SIZE_DEFAULT)
+            align = seg.get('align')
+            if align is None:
+                align = 'center' if seg.get('center', True) else 'left'
             extra = []
             if size != QR_SIZE_DEFAULT:
                 extra.append(f"size={size}")
             if seg.get('show_link'):
                 extra.append('show-link')
-            if seg.get('center'):
-                extra.append('center')
+            if align != 'left':
+                extra.append(align)
             if seg.get('link_qr'):
                 extra.append('link')
             if seg.get('ticket_code'):
@@ -285,7 +291,8 @@ def _render_segments_preview(context: dict, width: int = INNER_WIDTH) -> str:
                 preview, data, width, meta=label,
                 qr_size=size,
                 paper_width_pixels=paper_px,
-                center=bool(seg.get('center', True)),
+                center=(align == 'center'),
+                align=align,
             )
         elif seg_type == 'barcode':
             sym = seg.get('symbology', 'barcode').upper()

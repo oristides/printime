@@ -97,13 +97,44 @@ PRINTER_PROFILE=simple
 
 ---
 
-## Character encoding (São Paulo, ã, ç)
+## Character encoding (Portuguese, Spanish, ã, ç, ñ)
 
-- **Preview** shows real Unicode in the terminal.
-- **Print** uses **`encoding: cp850`** by default (Latin/Western Europe).
-- Bullets and dashes are normalized (`•` → `*`).
+**Source files and preview are UTF-8 (Unicode).** Markdown, Anytype, and URLs can use any language in the terminal preview.
 
-If characters still garble on paper, try `encoding: latin-1` or `ascii` in `printer.yaml`.
+**Thermal printers rarely print raw UTF-8.** They use legacy **code pages**. Printime converts Unicode → your configured code page when sending to the printer.
+
+Set in `config/printer.yaml`:
+
+```yaml
+printer:
+  encoding: cp850    # default — Western European (ã, ç, é, ó, ñ)
+  # encoding: cp860  # Portuguese IBM code page (try if cp850 garbles)
+  # encoding: latin-1
+  # encoding: utf-8  # only if your printer firmware supports UTF-8 ESC/POS
+  # encoding: ascii  # strips accents (fallback)
+```
+
+| Language / chars | Try first |
+|------------------|-----------|
+| Portuguese (ã, ç, õ) | **`cp860`** for Brazilian POS printers; `cp850` for generic EU |
+| Spanish (ñ, á) | `cp850` or `latin-1` |
+| French, German | `cp850` |
+| Emoji, CJK | not supported on most 80mm printers |
+
+Bullets and dashes are normalized (`•` → `*`, `—` → `-`).
+
+If **`í` and `ç` print correctly but `ã` / `õ` do not**, your printer is almost certainly on the **Portuguese code page (CP860)** while printime was sending CP850 bytes. Set:
+
+```yaml
+encoding: cp860
+```
+
+Printime now also sends `ESC t 3` to select CP860 on the printer at job start.
+
+1. Confirm `encoding: cp850` in `config/printer.yaml`
+2. Try `cp860` (Portuguese) or `latin-1`
+3. Run `printime doctor --test-print` with a line like `São Paulo`
+4. Reinstall after config change: `pipx install -e . --force`
 
 ---
 

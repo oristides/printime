@@ -106,8 +106,9 @@ def markdown_to_context(
     filename: str = "",
     width: int = 48,
     *,
-    link_qr: bool = False,
-    link_qr_size: int = 5,
+    link_qr: bool = True,
+    link_qr_size: int = 4,
+    link_qr_align: str = 'left',
     main_url: str | None = None,
 ) -> Dict[str, Any]:
     """Convert markdown with YAML frontmatter to template context."""
@@ -124,7 +125,12 @@ def markdown_to_context(
     from printime.services.markdown_blocks import build_print_segments
 
     segments = build_print_segments(
-        body, width, link_qr=link_qr, link_qr_size=link_qr_size, main_url=main_url,
+        body,
+        width,
+        link_qr=link_qr,
+        link_qr_size=link_qr_size,
+        link_qr_align=link_qr_align,
+        main_url=main_url,
     )
     context['segments'] = segments
     _sync_legacy_context_fields(context, segments, width)

@@ -503,7 +503,7 @@ class TestUrlFetch:
         original = fetch_url.fetch_html
         fetch_url.fetch_html = lambda url: self.SAMPLE_HTML
         try:
-            context = fetch_url.url_to_context('https://example.com/p/test', width=48, max_chars=None)
+            context = fetch_url.url_to_context('https://example.com/p/test', width=48, max_chars=None, link_qr=False)
         finally:
             fetch_url.fetch_html = original
 

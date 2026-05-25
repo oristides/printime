@@ -175,11 +175,17 @@ def build_print_segments(
     body: str,
     width: int = 48,
     *,
-    link_qr: bool = False,
-    link_qr_size: int = 5,
+    link_qr: bool = True,
+    link_qr_size: int = 4,
+    link_qr_align: str = 'left',
     main_url: str | None = None,
 ) -> List[Dict[str, Any]]:
     """Build ordered segments for thermal printing."""
+    from printime.services.link_qr import append_bare_url_qrs, normalize_document_links
+
+    if link_qr:
+        body = normalize_document_links(body)
+
     segments: List[Dict[str, Any]] = []
     for kind, payload, header in split_markdown_body(body):
         if kind == 'markdown':
@@ -187,7 +193,11 @@ def build_print_segments(
                 from printime.services.link_qr import markdown_lines_to_link_segments
                 segments.extend(
                     markdown_lines_to_link_segments(
-                        payload, width, link_qr_size=link_qr_size, main_url=main_url,
+                        payload,
+                        width,
+                        link_qr_size=link_qr_size,
+                        link_qr_align=link_qr_align,
+                        main_url=main_url,
                     )
                 )
             else:
@@ -202,6 +212,10 @@ def build_print_segments(
                 segment: Dict[str, Any] = {'type': 'qr', 'data': data}
                 segment.update(parse_qr_fence_options(header))
                 segments.append(segment)
+    if link_qr:
+        segments = append_bare_url_qrs(
+            segments, body, link_qr_size=link_qr_size, link_qr_align=link_qr_align,
+        )
     return segments
 
 

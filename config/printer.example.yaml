@@ -14,7 +14,7 @@ printer:
   # --- Paper layout (most 80mm printers) ---
   width: 48                  # characters per line (58mm≈32, 80mm≈48)
   paper_width_pixels: 576    # 80mm @ 203dpi — for centered QR/images
-  encoding: cp850            # cp850 (Western Europe) | latin-1 | ascii
+  encoding: cp860            # cp860 (PT-BR POS) | cp850 (EU) | latin-1 | utf-8 | ascii
 
   # --- CUPS (optional; used by doctor and USB release) ---
   cups_queue: YOUR_CUPS_QUEUE_NAME
@@ -35,7 +35,8 @@ printer:
 
   # Default QR module size (CLI --qr-size overrides)
   qr_size: 8
-  link_qr_size: 5
+  link_qr_size: 4              # mini QR for hyperlinks (3–8)
+  link_qr_align: left          # left | center | right
 
 templates:
   default_layout: note

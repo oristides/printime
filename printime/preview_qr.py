@@ -8,6 +8,11 @@ from typing import List, Tuple
 
 import qrcode
 
+try:
+    from PIL import Image
+except ImportError:  # pragma: no cover
+    Image = None  # type: ignore
+
 QR_BORDER_MODULES = 2
 QR_EC = qrcode.constants.ERROR_CORRECT_M
 
@@ -34,8 +39,11 @@ def render_qr_ascii(
     paper_width_pixels: int = 576,
     paper_cols: int = 48,
     center: bool = True,
+    align: str | None = None,
 ) -> List[str]:
     """Return QR lines sized to match printed proportion on paper_cols."""
+    if align is None:
+        align = 'center' if center else 'left'
     if not data:
         return []
 
@@ -74,13 +82,52 @@ def render_qr_ascii(
             line = line[:paper_cols]
         lines.append(line)
 
-    if center and lines:
+    if align == 'center' and lines:
         max_len = max(len(line) for line in lines)
         pad = max(0, (paper_cols - max_len) // 2)
         if pad:
             lines = [' ' * pad + line for line in lines]
+    elif align == 'right' and lines:
+        max_len = max(len(line) for line in lines)
+        pad = max(0, paper_cols - max_len)
+        if pad:
+            lines = [' ' * pad + line for line in lines]
 
     return lines
+
+
+def make_aligned_qr_image(
+    data: str,
+    *,
+    qr_size: int = 8,
+    paper_width_pixels: int = 576,
+    align: str = 'center',
+    border: int = QR_BORDER_MODULES,
+):
+    """Render QR bitmap aligned on paper (used by USB/raw print backends)."""
+    if Image is None or not data:
+        return None
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=QR_EC,
+        box_size=qr_size,
+        border=border,
+    )
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color='black', back_color='white').convert('1')
+    w, h = img.size
+    if w >= paper_width_pixels or align == 'left':
+        return img
+    padded = Image.new('1', (paper_width_pixels, h), 1)
+    if align == 'center':
+        x = (paper_width_pixels - w) // 2
+    elif align == 'right':
+        x = paper_width_pixels - w
+    else:
+        x = 0
+    padded.paste(img, (x, 0))
+    return padded
 
 
 def render_qr_ascii_block(
@@ -90,6 +137,7 @@ def render_qr_ascii_block(
     paper_width_pixels: int = 576,
     paper_cols: int = 48,
     center: bool = True,
+    align: str | None = None,
 ) -> str:
     return '\n'.join(
         render_qr_ascii(
@@ -98,5 +146,6 @@ def render_qr_ascii_block(
             paper_width_pixels=paper_width_pixels,
             paper_cols=paper_cols,
             center=center,
+            align=align,
         )
     )

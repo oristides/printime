@@ -134,13 +134,21 @@ def html_to_text(html: str) -> str:
     return parser.get_text()
 
 
+def article_html_to_text(html: str) -> str:
+    """Extract article text, preserving hyperlinks as markdown."""
+    from printime.services.link_qr import normalize_document_links
+
+    return html_to_text(normalize_document_links(html))
+
+
 def url_to_context(
     url: str,
     width: int = 48,
     max_chars: Optional[int] = DEFAULT_MAX_CHARS,
     *,
-    link_qr: bool = False,
-    link_qr_size: int = 5,
+    link_qr: bool = True,
+    link_qr_size: int = 4,
+    link_qr_align: str = 'left',
 ) -> Dict[str, Any]:
     """Fetch a URL and build a note template context."""
     from printime.services.transform import _markdown_body_to_text
@@ -153,7 +161,8 @@ def url_to_context(
             title = _extract_title(html) or 'Tweet'
     else:
         title = _extract_title(html) or urlparse(url).path.rstrip('/').split('/')[-1] or 'Article'
-        body = html_to_text(_extract_article_html(html))
+        article_html = _extract_article_html(html)
+        body = article_html_to_text(article_html) if link_qr else html_to_text(article_html)
 
     if not body.strip():
         raise ValueError(f'Could not extract readable text from {url}')
@@ -167,7 +176,12 @@ def url_to_context(
     if link_qr:
         from printime.services.markdown_blocks import build_print_segments
         segments = build_print_segments(
-            body, width, link_qr=True, link_qr_size=link_qr_size, main_url=url,
+            body,
+            width,
+            link_qr=True,
+            link_qr_size=link_qr_size,
+            link_qr_align=link_qr_align,
+            main_url=url,
         )
         return {
             'title': title,

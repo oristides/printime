@@ -7,7 +7,7 @@ printer:
   device: /dev/usb/lp5
   width: 48
   paper_width_pixels: 576
-  encoding: cp850
+  encoding: cp860            # Portuguese POS printers (ã, õ); cp850 for generic EU
 
   usb:
     vendor_id: 0x0416
@@ -17,7 +17,8 @@ printer:
 
   profile: RP-F10-80mm
   qr_size: 8
-  link_qr_size: 5
+  link_qr_size: 4
+  link_qr_align: left
 
 templates:
   default_layout: receipt

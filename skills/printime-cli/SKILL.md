@@ -2,7 +2,7 @@
 name: printime
 description: >-
   Operate the printime thermal printer CLI — print notes, checklists, QR codes,
-  mermaid diagrams, ticket PDFs, Google Calendar, Anytype pages, and web articles
+  mermaid diagrams, ticket PDFs, Google Calendar, Anytype pages, and web articles and blogs, 
   on ESC/POS thermal printers. Use for printime, thermal printer, receipt print,
   agenda, QR, Anytype, ticket PDF, or automating paper output.
 ---

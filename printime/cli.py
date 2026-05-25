@@ -48,26 +48,46 @@ def _usb_id(value) -> int:
 class EscposPrinterAdapter:
     """Expose RawPrinter-like methods on python-escpos printer drivers."""
 
-    def __init__(self, printer, width: int, backend: str = 'escpos', cups_queue: str | None = None):
+    def __init__(
+        self,
+        printer,
+        width: int,
+        backend: str = 'escpos',
+        cups_queue: str | None = None,
+        paper_width_pixels: int = 576,
+        encoding: str = 'cp850',
+    ):
         self._printer = printer
         self.width = width
+        self.paper_width_pixels = paper_width_pixels
+        self.encoding = encoding
         self.backend = backend
         self.cups_queue = cups_queue
 
-    @staticmethod
-    def _encode_raw(data) -> bytes:
+    def _encode_payload(self, text: str) -> bytes:
+        from printime.text_encoding import encode_for_printer, resolve_printer_encoding
+
+        return encode_for_printer(text, resolve_printer_encoding(self.encoding))
+
+    def _apply_code_page(self) -> None:
+        from printime.text_encoding import escpos_select_code_page
+
+        cmd = escpos_select_code_page(self.encoding)
+        if cmd:
+            self._printer._raw(cmd)
+
+    def raw(self, data):
         if isinstance(data, bytes):
             text = data.decode('utf-8')
         else:
             text = data.replace('\\r', '\r').replace('\\n', '\n')
-        return text.replace('\n', '\r\n').encode('utf-8')
-
-    def raw(self, data):
         self._printer._raw(b'\x1b\x40')
-        self._printer._raw(self._encode_raw(data))
+        self._apply_code_page()
+        self._printer._raw(self._encode_payload(text.replace('\n', '\r\n')))
 
     def init(self):
         self._printer._raw(b'\x1b\x40')
+        self._apply_code_page()
 
     def text(self, text, align='left', bold=False, double_height=False, double_width=False):
         payload = text if text else ' '
@@ -83,16 +103,46 @@ class EscposPrinterAdapter:
             double_height=double_height,
             double_width=double_width,
         )
-        self._printer.text(payload)
+        self._printer._raw(self._encode_payload(payload) + b'\r\n')
         self._printer.set(bold=False, double_height=False, double_width=False, align='left')
         self._printer._raw(b'\x1d!\x00')
         self._printer._raw(b'\r\n')
         if double_height:
             self._printer._raw(b'\r\n')
 
-    def qr(self, data, size=8, center=True):
+    def qr(self, data, size=8, center=True, align=None):
         from escpos.constants import QR_ECLEVEL_M
-        self._printer.qr(data, size=size, center=center, ec=QR_ECLEVEL_M)
+        if align is None:
+            align = 'center' if center else 'left'
+        if align == 'right':
+            from printime.preview_qr import make_aligned_qr_image
+            img = make_aligned_qr_image(
+                data,
+                qr_size=size,
+                paper_width_pixels=self.paper_width_pixels,
+                align='right',
+            )
+            if img is not None:
+                self.image_from_pil(img)
+                return
+        self._printer.qr(data, size=size, center=(align == 'center'), ec=QR_ECLEVEL_M)
+
+    def image_from_pil(self, img):
+        w, h = img.size
+        rb = (w + 7) // 8
+        self._printer._raw(b'\x1d\x76\x30\x00')
+        self._printer._raw(bytes([rb & 0xFF, (rb >> 8) & 0xFF, h & 0xFF, (h >> 8) & 0xFF]))
+        for y in range(h):
+            row = []
+            for bi in range(rb):
+                byte = 0
+                for bit in range(8):
+                    x = bi * 8 + bit
+                    if x < w and img.getpixel((x, y)) == 0:
+                        byte |= 1 << (7 - bit)
+                row.append(byte)
+            self._printer._raw(bytes(row))
+        self._printer._raw(b'\r\n')
 
     def image(self, path):
         self._printer.image(path)
@@ -111,6 +161,8 @@ def finish_job(printer):
     """Release printer device after a print job."""
     if getattr(printer, '_job_finished', False):
         return
+    if hasattr(printer, '_code_page_set'):
+        printer._code_page_set = False
     if hasattr(printer, 'close'):
         printer.close()
     if getattr(printer, 'backend', '') == 'usb' and getattr(printer, 'cups_queue', None):
@@ -144,9 +196,20 @@ def _feed_line(printer, count: int = 1) -> None:
             printer.text('', align='left')
 
 
+def _ensure_code_page(printer) -> None:
+    """Select printer code page once per job (ESC t n after ESC @)."""
+    if getattr(printer, '_code_page_set', False):
+        return
+    if hasattr(printer, 'init'):
+        printer.init()
+    printer._code_page_set = True  # type: ignore[attr-defined]
+
+
 def print_styled_lines(printer, lines, width: int = 48) -> None:
     """Send styled lines using ESC/POS text modes."""
     from printime.styled import PrintLine
+
+    _ensure_code_page(printer)
 
     for line in lines:
         if not isinstance(line, PrintLine):
@@ -167,15 +230,20 @@ def print_styled_lines(printer, lines, width: int = 48) -> None:
             _feed_line(printer)
 
 
+def _printer_encoding(printer, default: str = 'cp850') -> str:
+    return getattr(printer, 'encoding', default)
+
+
 def _print_plain_block(printer, lines: list[str]) -> None:
     """Print plain lines with guaranteed line breaks on every backend."""
-    from printime.preview import sanitize_printer_text
+    from printime.text_encoding import encode_for_printer, resolve_printer_encoding, sanitize_printer_text
 
-    block = sanitize_printer_text('\n'.join(lines) + '\n')
+    enc = resolve_printer_encoding(_printer_encoding(printer))
+    block = sanitize_printer_text('\n'.join(lines) + '\n', encoding=enc)
     _reset_text_style(printer)
     if hasattr(printer, '_write'):
         printer._write_style(align='left')
-        printer._write(block.replace('\n', '\r\n').encode('utf-8'))
+        printer._write(encode_for_printer(block.replace('\n', '\r\n'), enc))
         printer._write_style(reset=True)
     elif hasattr(printer, 'raw'):
         printer.raw(block)
@@ -205,6 +273,7 @@ def print_segments(
     """Print markdown segments in document order (text, checklist, diagram, QR)."""
     from printime.services.diagram import mermaid_to_png
 
+    _ensure_code_page(printer)
     width = config['printer']['width']
     pixels = int(config.get('printer', {}).get('paper_width_pixels', 576))
     segments = context.get('segments') or []
@@ -292,8 +361,10 @@ def print_rendered(
 
     backend = getattr(printer, 'backend', type(printer).__name__)
     print(f"[printime] backend={backend}", file=sys.stderr)
-    text = sanitize_printer_text(rendered.replace('\r\n', '\n').replace('\r', '\n'))
+    enc = _printer_encoding(printer)
+    text = sanitize_printer_text(rendered.replace('\r\n', '\n').replace('\r', '\n'), encoding=enc)
     try:
+        _ensure_code_page(printer)
         if styled_lines and STYLED_CONTENT_MARKER.strip() in text:
             before, _, after = text.partition(STYLED_CONTENT_MARKER.strip())
             if before:
@@ -455,7 +526,11 @@ def create_printer(config):
                 vendor, product, in_ep=in_ep, out_ep=out_ep, timeout=5000,
                 profile=profile,
             )
-            return EscposPrinterAdapter(printer, width, backend='usb', cups_queue=queue)
+            return EscposPrinterAdapter(
+                printer, width, backend='usb', cups_queue=queue,
+                paper_width_pixels=int(config['printer'].get('paper_width_pixels', 576)),
+                encoding=config['printer'].get('encoding', 'cp850'),
+            )
         except Exception as e:
             if backend == 'usb':
                 raise
@@ -464,7 +539,11 @@ def create_printer(config):
     if backend in ('auto', 'cups') and queue and HAS_ESCPOS and LP is not None:
         try:
             printer = LP(queue)
-            return EscposPrinterAdapter(printer, width, backend=f'cups:{queue}')
+            return EscposPrinterAdapter(
+                printer, width, backend=f'cups:{queue}',
+                paper_width_pixels=int(config['printer'].get('paper_width_pixels', 576)),
+                encoding=config['printer'].get('encoding', 'cp850'),
+            )
         except Exception as e:
             if backend == 'cups':
                 raise
@@ -485,7 +564,7 @@ class RawPrinter:
 
     def _encode_text(self, text: str) -> bytes:
         from printime.text_encoding import encode_for_printer
-        enc = self.encoding if self.encoding in ('cp850', 'latin-1', 'ascii', 'utf-8') else 'cp850'
+        enc = self.encoding if self.encoding in ('cp850', 'cp860', 'latin-1', 'ascii', 'utf-8') else 'cp850'
         return encode_for_printer(text, enc)
 
     def _write(self, data):
@@ -513,6 +592,11 @@ class RawPrinter:
         else:
             text = data.replace('\\r', '\r').replace('\\n', '\n')
         self._write(b'\x1b\x40')
+        from printime.text_encoding import escpos_select_code_page
+
+        cmd = escpos_select_code_page(self.encoding)
+        if cmd:
+            self._write(cmd)
         self._write(self._encode_text(text.replace('\n', '\r\n')))
 
     def close(self):
@@ -520,6 +604,11 @@ class RawPrinter:
 
     def init(self):
         self._write(b'\x1b\x40')
+        from printime.text_encoding import escpos_select_code_page
+
+        cmd = escpos_select_code_page(self.encoding)
+        if cmd:
+            self._write(cmd)
 
     def text(self, text, align='left', bold=False, double_height=False, double_width=False):
         payload = text if text else ''
@@ -937,7 +1026,7 @@ def cmd_print(args, config, printer):
                 args.url,
                 config['printer']['width'],
                 max_chars,
-                link_qr=getattr(args, 'link_qr', False),
+                link_qr=True,
                 link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
             )
         except Exception as exc:
