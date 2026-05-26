@@ -36,6 +36,10 @@ graph TD
 ```qr --qr-size 10 --center
 "https://example.com"
 ```
+
+```slant --center
+hello world
+```
 ````
 
 Print:
@@ -74,6 +78,7 @@ See `examples/diagram_flow.md` for a full mixed-content page.
 - ` ```mermaid ` … ` ``` ` — diagram (rendered via mermaid-cli if installed)
 - Plain ` ``` ` fence with `graph TD` / `flowchart` — also treated as mermaid (Anytype export)
 - ` ```qr [flags] ` … ` ``` ` — inline QR block
+- ` ```ascii font=slant [flags] ` … ` ``` ` or direct ` ```slant ` fences — receipt-safe ASCII art
 
 ### Tables
 
@@ -127,6 +132,39 @@ Inline markdown inside cells is cleaned for paper output, so `**P0**`, `` `Done`
 - `--qr-size` — module size 4–12 (default 8)
 - `--center` — center on paper
 - `--show-link` — print URL text below QR
+
+### ASCII art fences
+
+ASCII art works in markdown files, `--markdown --text`, and template `--content` when markdown enrichment is enabled. Use `printime ascii-fonts` to list the limited public font choices from the CLI.
+
+````markdown
+```ascii font=slant --center
+hello world
+```
+
+```pagga --center
+oriel
+```
+````
+
+Supported public fonts are intentionally limited to the thermal-safe set:
+
+| Font | Manual max hint | Best for |
+| ---- | --------------- | -------- |
+| `pagga` | ~12 chars | Compact short words |
+| `avatar` | ~8 chars | Clean names and labels |
+| `bulbhead` | ~7 chars | Friendly headings |
+| `banner` | ~7 chars | Bold block headers |
+| `slant` | ~8 chars | General short text |
+
+Printime does not rely only on these manual limits. It renders candidate word groups, measures the widest output line, and wraps before any line exceeds the configured paper width. Local `pagga` uses pyfiglet's packaged `pagga.tlf` TOIlet font and matches the asciified API when requested as `Pagga` (the API is case-sensitive). Printime keeps the native FIGlet spacing instead of post-processing it away. For longer messages, words are grouped into multiple ASCII-art chunks. If one unbroken word is too wide, Printime splits that word into multiple fitted chunks before trying compact internal fallback fonts (`small`, `smslant`, `mini`) unless strict mode is enabled. Wider or noisy FIGlet fonts such as `shadow`, `thin`, `varsity`, `banner3`, `sub-zero`, and `the-edge` are not public options because they do not fit 48-column thermal receipts reliably.
+
+Fence flags:
+
+- `font=<name>` or `--font <name>` — choose a font when using the `ascii` fence.
+- `--center`, `--left`, `--right` — align the rendered block.
+- `--api-fallback` — try the asciified API if local `pyfiglet` rendering fails.
+- `--strict` — fail instead of using a compact fallback font.
 
 ### Title header layout
 

@@ -8,7 +8,7 @@ import shlex
 from typing import Any, Dict, List, Tuple
 
 FENCED_BLOCK_RE = re.compile(
-    r'```\s*(mermaid|qr)([^\n]*)\r?\n(.*?)```',
+    r'```\s*(mermaid|qr|ascii)([^\n]*)\r?\n(.*?)```',
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -27,6 +27,7 @@ MERMAID_START_RE = re.compile(
 QR_SIZE_MIN = 4
 QR_SIZE_MAX = 12
 QR_SIZE_DEFAULT = 8
+ASCII_FONT_ALIASES = {'pagga', 'avatar', 'bulbhead', 'banner', 'slant'}
 
 
 def parse_qr_fence_options(header: str) -> Dict[str, Any]:
@@ -77,6 +78,68 @@ def parse_qr_payload(raw: str) -> str:
     return payload.strip()
 
 
+def parse_ascii_payload(raw: str) -> str:
+    """Parse ASCII art text from a fenced block body."""
+    payload = ' '.join(line.strip() for line in raw.strip().splitlines() if line.strip())
+    if len(payload) >= 2 and payload[0] == payload[-1] and payload[0] in '"\'':
+        payload = payload[1:-1]
+    return payload.strip()
+
+
+def parse_ascii_fence_options(header: str) -> Dict[str, Any]:
+    """Parse ```ascii and direct font fence flags."""
+    options: Dict[str, Any] = {'font': 'slant', 'align': 'left'}
+    header = header.strip()
+    if not header:
+        return options
+
+    try:
+        tokens = shlex.split(header)
+    except ValueError:
+        tokens = header.split()
+
+    if tokens and tokens[0].lower() in ASCII_FONT_ALIASES:
+        options['font'] = tokens[0].lower()
+        tokens = tokens[1:]
+    elif tokens and tokens[0].lower() == 'ascii':
+        tokens = tokens[1:]
+
+    idx = 0
+    while idx < len(tokens):
+        token = tokens[idx]
+        lower = token.lower()
+        if lower.startswith('font='):
+            options['font'] = token.split('=', 1)[1].strip().lower()
+            idx += 1
+            continue
+        if lower == '--font' and idx + 1 < len(tokens):
+            options['font'] = tokens[idx + 1].strip().lower()
+            idx += 2
+            continue
+        if lower == '--center':
+            options['align'] = 'center'
+            idx += 1
+            continue
+        if lower == '--right':
+            options['align'] = 'right'
+            idx += 1
+            continue
+        if lower == '--left':
+            options['align'] = 'left'
+            idx += 1
+            continue
+        if lower == '--api-fallback':
+            options['api_fallback'] = True
+            idx += 1
+            continue
+        if lower == '--strict':
+            options['strict'] = True
+            idx += 1
+            continue
+        idx += 1
+    return options
+
+
 def normalize_mermaid_source(text: str) -> str:
     """Fix common mermaid corruption from Anytype paste/export."""
     text = text.replace('\u2014>', '-->').replace('—>', '-->').replace('→', '-->')
@@ -93,7 +156,7 @@ def _looks_like_mermaid(text: str) -> bool:
 
 
 def _classify_fence(header: str, payload: str) -> Tuple[str, str, str]:
-    """Map a fenced block to segment kind (markdown, mermaid, qr)."""
+    """Map a fenced block to segment kind (markdown, mermaid, qr, ascii_art)."""
     header = header.strip()
     lower = header.lower()
     if lower == 'mermaid' or lower.startswith('mermaid '):
@@ -102,6 +165,9 @@ def _classify_fence(header: str, payload: str) -> Tuple[str, str, str]:
     if lower == 'qr' or (lower.startswith('qr') and (len(header) <= 2 or header[2] in ' \t-')):
         opts = header[2:].strip() if len(header) > 2 else ''
         return 'qr', payload, opts
+    first = lower.split(None, 1)[0] if lower else ''
+    if lower == 'ascii' or lower.startswith('ascii ') or first in ASCII_FONT_ALIASES:
+        return 'ascii_art', payload, header
     if not header and _looks_like_mermaid(payload):
         return 'mermaid', payload, ''
     wrapped = f'```{header}\n{payload}```' if header else f'```\n{payload}```'
@@ -212,6 +278,41 @@ def build_print_segments(
                 segment: Dict[str, Any] = {'type': 'qr', 'data': data}
                 segment.update(parse_qr_fence_options(header))
                 segments.append(segment)
+        elif kind == 'ascii_art':
+            from printime.services.ascii_art import AsciiArtError, render_ascii_art
+
+            options = parse_ascii_fence_options(header)
+            text = parse_ascii_payload(payload)
+            if text:
+                try:
+                    rendered = render_ascii_art(
+                        text,
+                        font=options.get('font', 'slant'),
+                        width=width,
+                        align=options.get('align', 'left'),
+                        api_fallback=bool(options.get('api_fallback')),
+                        strict=bool(options.get('strict')),
+                    )
+                except AsciiArtError as exc:
+                    segments.append({
+                        'type': 'ascii_art',
+                        'text': text,
+                        'font': options.get('font', 'slant'),
+                        'align': 'left',
+                        'lines': [f'[ASCII art error: {exc}]'],
+                        'chunks': [],
+                        'warnings': [str(exc)],
+                    })
+                else:
+                    segments.append({
+                        'type': 'ascii_art',
+                        'text': rendered.plain_text,
+                        'font': rendered.font,
+                        'align': options.get('align', 'left'),
+                        'lines': rendered.lines,
+                        'chunks': rendered.chunks,
+                        'warnings': rendered.warnings,
+                    })
     if link_qr:
         segments = append_bare_url_qrs(
             segments, body, link_qr_size=link_qr_size, link_qr_align=link_qr_align,
@@ -228,7 +329,7 @@ def should_use_segment_print(segments: List[Dict[str, Any]], template_name: str)
         return False
     if template_name in ('document', 'ticket'):
         return True
-    if kinds & {'qr', 'barcode', 'code_image'}:
+    if kinds & {'qr', 'barcode', 'code_image', 'ascii_art'}:
         return True
     if len(segments) > 1:
         return True

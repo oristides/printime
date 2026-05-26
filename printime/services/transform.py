@@ -69,6 +69,9 @@ def _resolve_template(
     has_items = any(seg.get('type') == 'items' for seg in segments)
     has_body = any(seg.get('type') == 'styled' for seg in segments)
     has_qr = any(seg.get('type') == 'qr' for seg in segments)
+    has_ascii = any(seg.get('type') == 'ascii_art' for seg in segments)
+    if has_ascii:
+        return 'document'
     if (has_mermaid or has_qr) and (has_items or has_body):
         return 'document'
     if has_mermaid:

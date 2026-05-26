@@ -266,6 +266,18 @@ def _render_segments_preview(context: dict, width: int = INNER_WIDTH) -> str:
         elif seg_type == 'mermaid':
             preview._add_line('[diagram]')
             preview._add_blank()
+        elif seg_type == 'ascii_art':
+            lines = seg.get('lines') or []
+            if lines:
+                align = seg.get('align', 'left')
+                block = normalize_preview_text('\n'.join(lines))
+                if align == 'center':
+                    block = center_text(block, preview.width)
+                elif align == 'right':
+                    block = rjust_text(block, preview.width)
+                else:
+                    block = ljust_text(block, preview.width)
+                preview._add_line(block)
         elif seg_type == 'qr':
             from printime.services.markdown_blocks import QR_SIZE_DEFAULT
 

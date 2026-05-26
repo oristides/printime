@@ -75,6 +75,8 @@ Detailed preview capture workflow: [references/agent-protocol.md](references/age
 | Quick note | `printime print --template note --title "Today" --content "Ship docs" --preview` |
 | Checklist | `printime print --template checklist --file checklist.yaml --preview` |
 | Short message | `printime print --template message --title "Alert" --content "Printer is ready" --preview` |
+| ASCII art banner | `printime print --ascii "hello" --ascii-font slant --center --preview` |
+| ASCII art font choices | `printime ascii-fonts` |
 | Markdown file | `printime print notes.md --preview` |
 | Markdown table | `printime print examples/oriel-mandates.md --preview` |
 | Enriched text | `printime print --markdown --text "# Title\n\n- [ ] Task" --preview` |
@@ -97,6 +99,7 @@ Detailed preview capture workflow: [references/agent-protocol.md](references/age
 | `print` | Print text, markdown, QR codes, URLs, images, mermaid diagrams, templates, and ticket PDFs. |
 | `preview` | Render a terminal preview from text, a template, or a context file. |
 | `list` | List templates or show fields for one template. |
+| `ascii-fonts` | List limited thermal-safe ASCII art fonts. |
 | `transform` | Convert markdown, text, LaTeX, or URL content to context/image output. |
 | `doctor` | Diagnose printer config, USB device, CUPS queue, and optional test print. |
 | `serve` | Start a local HTTP print endpoint for app or agent automation. |
@@ -136,6 +139,16 @@ printime anytype print "rETROSUM" --preview
 ```
 
 Markdown tables are rendered as receipt-friendly columns; Anytype `<br>` table markup is normalized. On 48-character paper, prefer 2-3 columns for readability, 4 columns for compact dashboards, and 5 columns only for dense summaries.
+
+**ASCII art banners:**
+
+```bash
+printime print --ascii "hello" --ascii-font slant --center --preview
+printime print --markdown --text $'```pagga --center\noriel\n```' --preview
+printime ascii-fonts
+```
+
+ASCII art uses local `pyfiglet` first and wraps by measured rendered width, not just character count. Public font choices are limited to `pagga`, `avatar`, `bulbhead`, `banner`, and `slant`; local `pagga` matches asciified `Pagga` output and keeps native FIGlet spacing. For longer messages, Printime splits words, and also splits one over-wide unbroken word into fitted chunks before using compact internal fallback fonts.
 
 **Google Calendar agenda:**
 

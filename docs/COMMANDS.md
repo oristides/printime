@@ -72,6 +72,28 @@ printime print --text "No cut" --no-cut
 
 Plain text has **no** title bar, template fields, or automatic datetime. Paper is cut at the end unless `--no-cut`.
 
+### ASCII art
+
+Render short receipt-safe banners locally with `pyfiglet`:
+
+```bash
+printime print --ascii "hello" --ascii-font slant --center --preview
+printime print --ascii "oriel" --ascii-font pagga --preview
+printime ascii-fonts
+```
+
+Use markdown fences for ASCII art inside `.md` files, `--markdown --text`, or template `--content`:
+
+````bash
+printime print --markdown --text $'```slant --center\nhello world\n```' --preview
+printime print --template note --title "Today" \
+  --markdown \
+  --content $'```pagga --center\nhello\n```\n\nNormal text after.' \
+  --preview
+````
+
+The public font choices are intentionally limited to the thermal-safe set: `pagga`, `avatar`, `bulbhead`, `banner`, and `slant`. Use `printime ascii-fonts` to list them with style notes. Local `pagga` uses pyfiglet's packaged `pagga.tlf` TOIlet font and matches the asciified API when requested as `Pagga` (the API is case-sensitive). Printime prints ASCII-art rows as one tight multiline block, like piping API output to `printime print --text`. Printime measures the rendered FIGlet output, wraps by words, and only emits lines that fit the configured paper width. If one unbroken word is too wide, Printime splits that word into multiple fitted chunks before trying compact internal fallback fonts such as `small`, `smslant`, and `mini`. Add `--ascii-api-fallback` to try the asciified web API when local rendering fails; API requests use capitalized font names such as `Pagga`.
+
 ### From markdown file
 
 ```bash
@@ -122,6 +144,10 @@ printime print --test all
 | Flag | Description |
 | ---- | ----------- |
 | `--text`, `-t` | Plain text (no template) |
+| `--ascii` | Render text as ASCII art |
+| `--ascii-font` | Limited ASCII art font choice: `pagga`, `avatar`, `bulbhead`, `banner`, or `slant` (default `slant`) |
+| `--ascii-api-fallback` | Try the asciified API if local rendering fails |
+| `--ascii-strict` | Fail instead of falling back to a compact font |
 | `--qr` | Print QR payload (URL, WiFi, vCard, etc.) |
 | `--qr-size` | QR module size 4–12 (default **8**) |
 | `--show-link` | Print URL text below QR |
@@ -173,6 +199,18 @@ printime list document
 ```
 
 Templates: `note`, `checklist`, `document`, `diagram`, `task`, `jira`, `message`, `receipt`, `heading`, `agenda`, `equation`
+
+---
+
+## ascii-fonts
+
+List the limited thermal-safe ASCII art fonts available for `--ascii-font` and markdown fences.
+
+```bash
+printime ascii-fonts
+```
+
+Public font choices are limited to `pagga`, `avatar`, `bulbhead`, `banner`, and `slant`. Wider or noisy FIGlet fonts such as `shadow`, `thin`, `varsity`, `banner3`, `sub-zero`, and `the-edge` are not exposed because they do not fit 48-column thermal receipts reliably.
 
 ---
 

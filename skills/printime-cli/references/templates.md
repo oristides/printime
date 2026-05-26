@@ -46,6 +46,10 @@ graph TD
 ```qr --qr-size 10 --center
 "https://example.com"
 ```
+
+```slant --center
+hello world
+```
 ````
 
 Print it:
@@ -134,6 +138,29 @@ Flags:
 - `--qr-size`: module size 4-12.
 - `--center`: center the QR on paper.
 - `--show-link`: print text below the QR.
+
+## ASCII Art Blocks
+
+Use `ascii` fences or direct font-name fences inside markdown files, `--markdown --text`, or template `--content`. Run `printime ascii-fonts` to list the limited public font choices.
+
+````markdown
+```ascii font=slant --center
+hello world
+```
+
+```pagga --center
+oriel
+```
+````
+
+Public font choices are limited to the thermal-safe set: `pagga`, `avatar`, `bulbhead`, `banner`, and `slant`. Printime renders with local `pyfiglet`, measures the actual output width, wraps by words, and keeps every emitted line within the configured receipt width. Local `pagga` uses pyfiglet's packaged `pagga.tlf` and matches asciified `Pagga` output; Printime keeps native FIGlet spacing instead of post-processing it away. For longer messages, it splits words into multiple ASCII-art chunks. If one unbroken word is too wide, it splits that word into fitted chunks before using compact internal fallback fonts such as `small`, `smslant`, and `mini`.
+
+Flags:
+
+- `font=<name>` / `--font <name>`: choose a font for `ascii` fences.
+- `--center`, `--left`, `--right`: align the rendered block.
+- `--api-fallback`: call the asciified API if local rendering fails.
+- `--strict`: fail instead of switching to a compact fallback font.
 
 ## Tables
 

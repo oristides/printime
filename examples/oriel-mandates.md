@@ -9,7 +9,12 @@
 8. Be authentic and transparent
 
 
-| Header 1 | Header 2 | 
-| -------- | -------- |
-| Cell A   | Cell B   |
-| Cell C   | Cell D   |
+| Header 1 | Header 2 | Header 3 |  
+| -------- | -------- | -------- |
+| Cell A   | Cell B   | Cell B   |
+| Cell D   | Cell E   | Cell F   |
+
+
+```pagga --left
+oristidesxxx
+```

@@ -9,6 +9,7 @@ dependencies = [
     "pyyaml>=6.0",
     "qrcode>=8.0",
     "pillow>=10.0.0",
+    "pyfiglet>=1.0.0",
     "python-dotenv>=1.0.0",
     "python-escpos>=3.1",
     "pyusb>=1.2.0",

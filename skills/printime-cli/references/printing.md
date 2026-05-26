@@ -39,7 +39,7 @@ printime print examples/diagram_flow.md --preview
 printime print --md notes.md --template document --preview
 ```
 
-Markdown can include YAML frontmatter, checkboxes, tables, mermaid fences, and inline QR fences. Tables are rendered as compact receipt columns in both preview and paper output. See [templates.md](templates.md).
+Markdown can include YAML frontmatter, checkboxes, tables, mermaid fences, inline QR fences, and ASCII art fences. Tables are rendered as compact receipt columns in both preview and paper output. See [templates.md](templates.md).
 
 ## Enriched Markdown Text
 
@@ -47,7 +47,17 @@ Use `--markdown --text` for quick enriched content, but prefer `.md` files for a
 
 ```bash
 printime print --markdown --text $'# Today\n\n- [ ] Ship docs\n\n| Item | Status |\n| --- | --- |\n| Tables | Clean |' --preview
+printime print --markdown --text $'```slant --center\nhello world\n```' --preview
 ```
+
+ASCII art can also be printed directly:
+
+```bash
+printime print --ascii "hello" --ascii-font slant --center --preview
+printime ascii-fonts
+```
+
+ASCII art font choices are limited to `pagga`, `avatar`, `bulbhead`, `banner`, and `slant` for reliable 48-column receipts.
 
 ## Google Calendar Agenda
 

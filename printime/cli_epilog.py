@@ -18,6 +18,8 @@ Examples:
   printime print --url 'https://example.com/post' --link-qr --preview
   printime print --ticket examples/tickets-pdf/Ticket.pdf --preview
   printime print --qr "https://example.com"
+  printime print --ascii "hello" --ascii-font slant --center --preview
+  printime ascii-fonts
   printime anytype print "Page title" --preview
   printime agenda --today --preview
   printime agenda --days 7 --preview
@@ -28,6 +30,9 @@ Markdown mini-syntax (.md files, --markdown, template content):
   [label](https://url)  + --link-qr  → label + mini QR
   ```qr --qr-size 8 --center
   https://example.com
+  ```
+  ```slant --center
+  hello
   ```
 """
 
@@ -41,5 +46,7 @@ Examples:
   printime print --url 'https://blog.example/post' --link-qr --preview
   printime print --ticket ticket.pdf --preview
   printime print --qr "https://example.com" --qr-size 10
+  printime print --ascii "hello" --ascii-font slant --center --preview
+  printime ascii-fonts
   printime print --text "Plain line"
 """

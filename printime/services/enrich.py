@@ -7,7 +7,8 @@ import re
 from typing import Any, Dict, Iterable
 
 MARKDOWN_HINT = re.compile(
-    r'^#{1,6}\s|^\s*[-*+]\s|^\s*-\s*\[[ xX]\]|(\*\*.+\*\*)|(\[.+\]\(.+\))|^<center>',
+    r'^#{1,6}\s|^\s*[-*+]\s|^\s*-\s*\[[ xX]\]|'
+    r'(\*\*.+\*\*)|(\[.+\]\(.+\))|^<center>|```',
     re.MULTILINE | re.IGNORECASE,
 )
 
@@ -42,9 +43,14 @@ def enrich_context_fields(
         if isinstance(val, str) and val.strip():
             combined += f'\n\n{val}'
 
-    if combined.strip() and link_qr:
-        segs = build_print_segments(combined.strip(), width, link_qr=True, link_qr_size=link_qr_size)
-        if segs:
+    if combined.strip():
+        segs = build_print_segments(
+            combined.strip(),
+            width,
+            link_qr=link_qr,
+            link_qr_size=link_qr_size,
+        )
+        if segs and any(seg.get('type') != 'styled' for seg in segs):
             ctx['segments'] = segs
             ctx['template'] = ctx.get('template') or 'document'
             return ctx

@@ -62,6 +62,8 @@ See **[docs/QUICKSTART.md](docs/QUICKSTART.md)** for the full guide.
 ```bash
 printime print --template note --title "Today" --content "Ship docs" --preview
 printime print --qr "https://example.com"            # big centered QR
+printime print --ascii "hello" --ascii-font slant --center --preview
+printime ascii-fonts                                 # supported ASCII art fonts
 printime print examples/diagram_flow.md --preview    # full page: headings, checklist, mermaid, QR
 printime print examples/note.md --preview            # simple note
 printime agenda --today --preview                    # today's Google Calendar agenda

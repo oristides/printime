@@ -37,6 +37,10 @@ Common flags:
 | Flag | Use |
 | ---- | --- |
 | `--text`, `-t` | Plain or markdown text. |
+| `--ascii` | Render text as ASCII art. |
+| `--ascii-font` | Limited ASCII font choice: `pagga`, `avatar`, `bulbhead`, `banner`, or `slant`. |
+| `--ascii-api-fallback` | Try the asciified API if local rendering fails. |
+| `--ascii-strict` | Fail instead of falling back to a compact font. |
 | `--markdown`, `-m` | Parse `--text` / `--content` as markdown. |
 | `--link-qr` | Add mini QR codes for URLs in markdown/text. |
 | `--ticket` | Print ticket PDF. Positional `.pdf` also works. |
@@ -63,6 +67,9 @@ printime print --template message --title "Alert" --content "Printer ready" --pr
 printime print notes.md --preview
 printime print examples/oriel-mandates.md --preview
 printime print --markdown --text $'# Today\n\n**Top risks**\n\n| Metric | Owner | Status | Next |\n| --- | --- | --- | --- |\n| Activation | Ana | Green | Watch signups |' --preview
+printime print --ascii "hello" --ascii-font slant --center --preview
+printime print --markdown --text $'```pagga --center\noriel\n```' --preview
+printime ascii-fonts
 printime print ticket.pdf --preview
 printime print --url "https://example.com/article" --preview
 printime print --qr "https://example.com" --qr-size 10 --show-link
@@ -89,6 +96,16 @@ printime list
 printime list --verbose
 printime list document
 ```
+
+## `ascii-fonts`
+
+List the limited thermal-safe ASCII art fonts available for `--ascii-font` and markdown fences.
+
+```bash
+printime ascii-fonts
+```
+
+Public font choices are limited to `pagga`, `avatar`, `bulbhead`, `banner`, and `slant`; compact fallback fonts are internal only.
 
 ## `transform`
 

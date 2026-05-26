@@ -299,6 +299,14 @@ def print_segments(
             if png_path and hasattr(printer, 'image'):
                 printer.image(png_path)
                 _feed_line(printer)
+        elif seg_type == 'ascii_art':
+            align = seg.get('align', 'left')
+            lines = seg.get('lines') or []
+            if lines:
+                _reset_text_style(printer)
+                # One print call keeps FIGlet rows tight, like piping API output
+                # through `printime print --text`. Lines are already aligned.
+                printer.text('\n'.join(lines), align='left')
         elif seg_type == 'barcode':
             data = seg.get('data', '')
             sym = seg.get('symbology', 'barcode')
@@ -1111,6 +1119,41 @@ def cmd_print(args, config, printer):
         )
         return
 
+    if getattr(args, 'ascii', None):
+        from printime.services.ascii_art import render_ascii_art
+
+        width = config['printer']['width']
+        align = 'center' if args.center else 'left'
+        rendered = render_ascii_art(
+            args.ascii,
+            font=getattr(args, 'ascii_font', 'slant'),
+            width=width,
+            align=align,
+            api_fallback=bool(getattr(args, 'ascii_api_fallback', False)),
+            strict=bool(getattr(args, 'ascii_strict', False)),
+        )
+        context = {
+            'title': getattr(args, 'title', '') or '',
+            'segments': [{
+                'type': 'ascii_art',
+                'text': rendered.plain_text,
+                'font': rendered.font,
+                'align': align,
+                'lines': rendered.lines,
+                'chunks': rendered.chunks,
+                'warnings': rendered.warnings,
+            }],
+        }
+        from printime.preview import _render_segments_preview
+        if args.preview:
+            print(_render_segments_preview(context, width=width))
+            if not getattr(args, 'yes', False):
+                print('Preview only. Add --yes to print.')
+                return
+        print_segments(printer, config, 'document', context, cut=not args.no_cut)
+        print('Text printed')
+        return
+
     if args.text:
         from printime.preview import render_styled_text_preview, render_text_preview
         from printime.services.enrich import looks_like_markdown
@@ -1120,28 +1163,27 @@ def cmd_print(args, config, printer):
         use_markdown = getattr(args, 'markdown', False) or looks_like_markdown(args.text)
         link_qr = getattr(args, 'link_qr', False)
 
-        if link_qr or (use_markdown and '[](http' in args.text or '](http' in args.text):
-            from printime.services.markdown_blocks import build_print_segments
+        if use_markdown:
+            from printime.services.markdown_blocks import build_print_segments, should_use_segment_print
             context = {
                 'title': getattr(args, 'title', '') or '',
                 'segments': build_print_segments(
                     args.text,
                     width,
-                    link_qr=True,
+                    link_qr=link_qr,
                     link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
                 ),
             }
-            from printime.preview import _render_segments_preview
-            if args.preview:
-                print(_render_segments_preview(context, width=width))
-                if not getattr(args, 'yes', False):
-                    print('Preview only. Add --yes to print.')
-                    return
-            print_segments(printer, config, 'document', context, cut=not args.no_cut)
-            print('Text printed')
-            return
-
-        if use_markdown:
+            if should_use_segment_print(context['segments'], 'document'):
+                from printime.preview import _render_segments_preview
+                if args.preview:
+                    print(_render_segments_preview(context, width=width))
+                    if not getattr(args, 'yes', False):
+                        print('Preview only. Add --yes to print.')
+                        return
+                print_segments(printer, config, 'document', context, cut=not args.no_cut)
+                print('Text printed')
+                return
             lines = markdown_to_print_lines(args.text, width)
             if args.preview:
                 print(render_styled_text_preview(lines, width=width))
@@ -1168,7 +1210,10 @@ def cmd_print(args, config, printer):
         print('Text printed')
         return
 
-    print('Nothing to print. Use --text, --template, --qr, --url, or a file.', file=sys.stderr)
+    print(
+        'Nothing to print. Use --text, --ascii, --template, --qr, --url, or a file.',
+        file=sys.stderr,
+    )
 
 
 def _get_template_dir() -> str:
@@ -1257,6 +1302,14 @@ def cmd_list(args) -> int:
         _print_template_entry(name, catalog[name], verbose=verbose)
         if verbose:
             print()
+    return 0
+
+
+def cmd_ascii_fonts() -> int:
+    """List limited ASCII-art fonts supported for thermal printing."""
+    from printime.services.ascii_art import supported_fonts_help
+
+    print(supported_fonts_help())
     return 0
 
 
@@ -1379,6 +1432,7 @@ def cmd_serve(args, config):
 def main():
     from printime.cli_epilog import MAIN_EPILOG, PRINT_EPILOG
     from printime.cli_help import HelpfulArgumentParser, PARSER_REGISTRY
+    from printime.services.ascii_art import supported_font_names
 
     parser = HelpfulArgumentParser(
         description='Printime - Thermal Printer CLI',
@@ -1399,6 +1453,17 @@ def main():
     PARSER_REGISTRY['print'] = print_parser
     print_parser.add_argument('input', nargs='?', help='Input file (.md, .pdf, .json, .yaml)')
     print_parser.add_argument('--text', '-t', help='Text to print')
+    print_parser.add_argument('--ascii', help='Render text as receipt-safe ASCII art')
+    print_parser.add_argument(
+        '--ascii-font',
+        choices=supported_font_names(),
+        default='slant',
+        help='ASCII art font for --ascii (limited thermal-safe choices)',
+    )
+    print_parser.add_argument('--ascii-api-fallback', action='store_true',
+                              help='Use asciified API if local pyfiglet rendering fails')
+    print_parser.add_argument('--ascii-strict', action='store_true',
+                              help='Fail if the requested ASCII font cannot fit')
     print_parser.add_argument('--markdown', '-m', action='store_true',
                               help='Parse --text / --content as markdown (# headings, **bold**, lists)')
     print_parser.add_argument('--link-qr', action='store_true',
@@ -1440,6 +1505,12 @@ def main():
     )
     list_parser.add_argument('template', nargs='?', help='Show fields for one template (e.g. note)')
     list_parser.add_argument('--verbose', '-v', action='store_true', help='Show fields for every template')
+
+    subparsers.add_parser(
+        'ascii-fonts',
+        help='List supported ASCII art fonts',
+        description='List the limited thermal-safe ASCII art fonts supported by printime.',
+    )
 
     doctor_parser = subparsers.add_parser('doctor', help='Diagnose printer setup')
     doctor_parser.add_argument('--test-print', action='store_true', help='Send a test page')
@@ -1538,6 +1609,8 @@ def main():
         return cmd_doctor(args, config)
     elif args.command == 'list':
         return cmd_list(args)
+    elif args.command == 'ascii-fonts':
+        return cmd_ascii_fonts()
 
     elif args.command == 'preview':
         from printime.preview import render_template_preview
