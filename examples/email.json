@@ -1,0 +1,11 @@
+{
+  "template": "email",
+  "subject": "Deploy v2.3 tonight?",
+  "sender": "ana@company.com",
+  "to": ["oriel@company.com", "ops@company.com"],
+  "cc": "team@company.com",
+  "date": "2026-05-26 18:30",
+  "body": "Please review the deploy checklist before 6pm.\n\nReply if you are blocked on staging access.",
+  "labels": ["work", "deploy"],
+  "message_id": "19a2f3c4b5d6e7f8"
+}

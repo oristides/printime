@@ -1,0 +1,33 @@
+{{ "=" * width }}
+{{ "EMAIL" | center(width) }}
+{% set subject_line = subject | default(title, true) | default('(no subject)', true) %}
+{{ subject_line | truncate(width, True) | center(width) }}
+{{ date | default(now, true) | center(width) }}
+{{ "=" * width }}
+{%- set from_line = sender | default(from_addr, true) %}
+{%- if from_line %}
+From: {{ from_line | truncate(width - 6, True) }}
+{%- endif %}
+{%- if to %}
+To:   {% if to is string %}{{ to | truncate(width - 6, True) }}{% else %}{{ to | join(', ') | truncate(width - 6, True) }}{% endif %}
+{%- endif %}
+{%- if cc %}
+Cc:   {% if cc is string %}{{ cc | truncate(width - 6, True) }}{% else %}{{ cc | join(', ') | truncate(width - 6, True) }}{% endif %}
+{%- endif %}
+{%- if reply_to %}
+Reply: {{ reply_to | truncate(width - 7, True) }}
+{%- endif %}
+
+{{ "-" * width }}
+{{ body | default(content, true) }}
+{%- if labels %}
+
+{{ "-" * width }}
+{%- set label_text = labels if labels is string else labels | join(', ') %}
+Labels: {{ label_text | truncate(width - 8, True) }}
+{%- endif %}
+{%- if message_id %}
+
+{{ "-" * width }}
+ID: {{ message_id | truncate(width - 4, True) }}
+{%- endif %}

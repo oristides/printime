@@ -59,7 +59,7 @@ See `examples/diagram_flow.md` for a full mixed-content page.
 | `title` | Header title (between `====` lines). Falls back to `# Heading` or filename. |
 | `caption` | Subtitle under title in the header block (not a diagram label). |
 | `date` | Override the automatic `YYYY-MM-DD HH:MM` line printed by `note`, `checklist`, `message`, and `agenda`. |
-| Other keys | Map to template variables (`priority`, `tags`, `due_date`, …). |
+| Other keys | Map to template variables (`priority`, `tags`, `due_date`, `sender`, `subject`, `to`, `cc`, …). |
 
 ### Auto template detection
 
@@ -314,6 +314,52 @@ Note: use `summary` in frontmatter, or set `title` / `# Heading` — it maps to 
 Short message with title, optional caption, automatic datetime, and body (simpler than `note` — no priority/tags).
 
 **Fields:** `title`, `caption`, `date`, `content`
+
+---
+
+## email
+
+Compact email summary with standard header fields and body text.
+
+**Fields:** `subject`, `sender`, `to`, `cc`, `reply_to`, `date`, `body`, `content`, `labels`, `message_id`
+
+**Markdown example** (`examples/email.md`):
+
+```markdown
+---
+template: email
+subject: Deploy v2.3 tonight?
+sender: ana@company.com
+to: oriel@company.com
+cc: team@company.com
+date: 2026-05-26 18:30
+labels: [work, deploy]
+---
+
+Please review the deploy checklist before 6pm.
+```
+
+**JSON / YAML context file:**
+
+```bash
+printime print --template email --file examples/email.json --preview
+```
+
+**Inline CLI:**
+
+```bash
+printime print --template email \
+  --title "Deploy v2.3 tonight?" \
+  --content "Please review before 6pm." \
+  --preview
+```
+
+Notes:
+
+- Use `sender` in frontmatter. YAML `from:` is also accepted and mapped to `sender`.
+- `to` and `cc` accept one address string or a list of addresses.
+- `body` is preferred; `content` works as a fallback.
+- `subject` is shown in the header. `title` maps to `subject` when `subject` is omitted.
 
 ---
 

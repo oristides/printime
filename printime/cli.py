@@ -351,6 +351,7 @@ def _extract_styled_lines(context: dict) -> tuple[dict, list | None, str | None]
         ('content_lines', 'content'),
         ('description_lines', 'description'),
         ('caption_lines', 'caption'),
+        ('body_lines', 'body'),
     ):
         if key in ctx:
             return ctx, ctx.pop(key), field

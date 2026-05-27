@@ -106,6 +106,10 @@ Print a template:
 curl -X POST http://localhost:8080/print \
   -H 'Content-Type: application/json' \
   -d '{"template":"note","context":{"title":"Hi","content":"From HTTP"}}'
+
+curl -X POST http://localhost:8080/print \
+  -H 'Content-Type: application/json' \
+  -d '{"template":"email","context":{"subject":"Deploy","sender":"ana@co.com","to":"you@co.com","body":"Review before 6pm."}}'
 ```
 
 Simple QR/text/raw payload:

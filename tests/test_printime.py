@@ -111,6 +111,19 @@ class TestTemplates:
                 rendered,
             ), template_name
 
+    def test_load_email_template(self):
+        config = load_config()
+        result = render_template('email', {
+            'subject': 'Deploy tonight',
+            'sender': 'ana@company.com',
+            'to': 'oriel@company.com',
+            'body': 'Please review before 6pm.',
+        }, config)
+        assert 'EMAIL' in result
+        assert 'Deploy tonight' in result
+        assert 'ana@company.com' in result
+        assert 'Please review before 6pm.' in result
+
     def test_load_checklist_template(self):
         config = load_config()
         result = render_template('checklist', {

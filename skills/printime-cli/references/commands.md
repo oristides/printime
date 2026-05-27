@@ -64,6 +64,7 @@ Examples:
 ```bash
 printime print --template note --title "Today" --content "Ship docs" --preview
 printime print --template message --title "Alert" --content "Printer ready" --preview
+printime print examples/email.md --preview
 printime print notes.md --preview
 printime print examples/oriel-mandates.md --preview
 printime print --markdown --text $'# Today\n\n**Top risks**\n\n| Metric | Owner | Status | Next |\n| --- | --- | --- | --- |\n| Activation | Ana | Green | Watch signups |' --preview

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 MAIN_EPILOG = """
 Templates (see: printime list, printime list <name>):
-  note, checklist, document, diagram, task, jira, message,
+  note, checklist, document, diagram, task, jira, message, email,
   receipt, heading, agenda, equation, ticket
 
 Examples:
@@ -13,6 +13,7 @@ Examples:
     --content "Ship docs" --preview
   printime print --template message --title "Alert" \\
     --content "Printer ready" --preview
+  printime print examples/email.md --preview
   printime print notes.md --preview
   printime print examples/diagram_flow.md --preview
   printime print --url 'https://example.com/post' --link-qr --preview
@@ -42,6 +43,7 @@ Examples:
     --content "Ship docs" --preview
   printime print --template message --title "Alert" \\
     --content "Printer ready" --preview
+  printime print examples/email.md --preview
   printime print note.md --preview
   printime print --url 'https://blog.example/post' --link-qr --preview
   printime print --ticket ticket.pdf --preview

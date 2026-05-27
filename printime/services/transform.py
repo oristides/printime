@@ -143,6 +143,16 @@ def markdown_to_context(
     if template == 'jira' and 'summary' not in context and 'title' in context:
         context['summary'] = context['title']
 
+    if template == 'email':
+        if 'sender' not in context and context.get('from'):
+            context['sender'] = context['from']
+        if 'subject' not in context and context.get('title'):
+            context['subject'] = context['title']
+        if body.strip() and 'body' not in context and 'content' not in context:
+            from printime.styled import markdown_to_print_lines, lines_to_plain_preview
+            context['body_lines'] = markdown_to_print_lines(body, width)
+            context['body'] = lines_to_plain_preview(context['body_lines'], width)
+
     if template in ('checklist', 'document') and context.get('items'):
         if not any(seg.get('type') == 'styled' for seg in segments) and body.strip():
             from printime.styled import markdown_to_print_lines, lines_to_plain_preview
@@ -160,7 +170,7 @@ def markdown_to_context(
             context[f'{field}_lines'] = markdown_to_print_lines(body, width)
             context[field] = lines_to_plain_preview(context[f'{field}_lines'], width)
     else:
-        if body.strip():
+        if template != 'email' and body.strip():
             from printime.styled import markdown_to_print_lines, lines_to_plain_preview
             context['content_lines'] = markdown_to_print_lines(body, width)
             context['content'] = lines_to_plain_preview(context['content_lines'], width)

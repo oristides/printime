@@ -132,7 +132,10 @@ def _render_jinja_template(template_name: str, context: dict, width: int = INNER
     env.filters['center'] = lambda s, w=width: center_text(str(s), w)
     env.filters['ljust'] = lambda s, w=width: ljust_text(str(s), w)
     env.filters['rjust'] = lambda s, w=width: rjust_text(str(s), w)
-    env.filters['truncate'] = lambda s, w=width: truncate_text(str(s), w)
+    env.filters['truncate'] = (
+        lambda s, w=width, end=True: truncate_text(str(s), int(w))
+        if end else str(s)[: int(w)]
+    )
 
     template = env.get_template(f'{template_name}.j2')
     ctx = {'width': width, 'now': _get_timestamp()}

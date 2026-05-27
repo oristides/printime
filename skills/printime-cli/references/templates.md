@@ -22,7 +22,7 @@ Common templates:
 | `diagram` | Mermaid diagram page. |
 | `ticket` | Extracted ticket PDF QR/barcode content. |
 | `agenda` | Google Calendar agenda with automatic datetime, locations, and notes. |
-| `task`, `jira`, `message`, `receipt`, `heading`, `equation` | Specialized layouts. |
+| `task`, `jira`, `message`, `email`, `receipt`, `heading`, `equation` | Specialized layouts. |
 
 ## Markdown File
 
@@ -66,7 +66,7 @@ printime print login-flow.md --preview
 | `title` | Header title. Falls back to first heading or file name. |
 | `caption` | Subtitle under title. |
 | `date` | Overrides the automatic `YYYY-MM-DD HH:MM` printed by `note`, `checklist`, `message`, and `agenda`. |
-| `priority`, `tags`, `due_date`, etc. | Passed to template-specific fields. |
+| `priority`, `tags`, `due_date`, `sender`, `subject`, etc. | Passed to template-specific fields. |
 
 ## Important Template Fields
 
@@ -100,6 +100,17 @@ Fields: `title`, `caption`, `date`, `content`.
 ```bash
 printime print --template message --title "Alert" --content "Printer ready" --preview
 ```
+
+### `email`
+
+Fields: `subject`, `sender`, `to`, `cc`, `reply_to`, `date`, `body`, `content`, `labels`, `message_id`.
+
+```bash
+printime print examples/email.md --preview
+printime print --template email --file examples/email.json --preview
+```
+
+YAML `from:` maps to `sender`. `to` and `cc` accept a string or list.
 
 ### `agenda`
 
@@ -220,6 +231,7 @@ JSON/YAML files can be printed through a template:
 
 ```bash
 printime print --template note --file note.yaml --preview
+printime print --template email --file examples/email.json --preview
 printime print context.json --template receipt --preview
 ```
 

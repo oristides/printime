@@ -27,13 +27,16 @@ printime print [OPTIONS] [FILE]
 
 ### Quick note (template)
 
-Prefer templates for notes, messages, and checklists. They include title blocks and automatic minute-precision datetime.
+Prefer templates for notes, messages, checklists, and email summaries. They include title blocks and structured fields.
 
 ```bash
 printime print --template note \
   --title "Title" \
   --content "Body text" \
   --preview
+
+printime print examples/email.md --preview
+printime print --template email --file examples/email.json --preview
 ```
 
 `note`, `checklist`, `message`, and `agenda` print `YYYY-MM-DD HH:MM` below the title/subtitle automatically.
@@ -198,7 +201,7 @@ printime list
 printime list document
 ```
 
-Templates: `note`, `checklist`, `document`, `diagram`, `task`, `jira`, `message`, `receipt`, `heading`, `agenda`, `equation`
+Templates: `note`, `checklist`, `document`, `diagram`, `task`, `jira`, `message`, `email`, `receipt`, `heading`, `agenda`, `equation`
 
 ---
 
@@ -257,6 +260,20 @@ printime serve --port 8080
   "cut": true,
   "template": "note",
   "context": {"title": "Hi", "content": "From webhook"}
+}
+```
+
+Email template via webhook:
+
+```json
+{
+  "template": "email",
+  "context": {
+    "subject": "Deploy v2.3 tonight?",
+    "sender": "ana@company.com",
+    "to": "oriel@company.com",
+    "body": "Please review before 6pm."
+  }
 }
 ```
 

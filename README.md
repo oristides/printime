@@ -65,6 +65,7 @@ printime print --qr "https://example.com"            # big centered QR
 printime print --ascii "hello" --ascii-font slant --center --preview
 printime ascii-fonts                                 # supported ASCII art fonts
 printime print examples/diagram_flow.md --preview    # full page: headings, checklist, mermaid, QR
+printime print examples/email.md --preview                 # email summary
 printime print examples/note.md --preview            # simple note
 printime agenda --today --preview                    # today's Google Calendar agenda
 printime agenda --days 7 --preview                   # this week from today
@@ -82,7 +83,7 @@ printime print --help                                # flags + examples on typos
 
 ## Examples
 
-Markdown examples in `examples/`: `note.md`, `checklist.md`, `task.md`, `jira.md`, `diagram_flow.md` (headings + checklist + mermaid + inline QR)
+Markdown examples in `examples/`: `note.md`, `checklist.md`, `email.md`, `task.md`, `jira.md`, `diagram_flow.md` (headings + checklist + mermaid + inline QR)
 
 ## License
 

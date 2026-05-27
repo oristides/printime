@@ -3,8 +3,8 @@ name: printime-cli
 description: >-
   Use when operating the printime CLI, ESC/POS thermal printers, receipt
   printing, POS8370, print previews, markdown notes, QR codes, ticket PDFs,
-  Anytype pages, Google Calendar agendas, Google Keep notes, templates, or
-  automation via printime serve.
+  Anytype pages, Google Calendar agendas, Google Keep notes, email summaries,
+  templates, or automation via printime serve.
 metadata:
   repository: ~/Documents/repos/random_projects/printime
   package: printime
@@ -75,6 +75,7 @@ Detailed preview capture workflow: [references/agent-protocol.md](references/age
 | Quick note | `printime print --template note --title "Today" --content "Ship docs" --preview` |
 | Checklist | `printime print --template checklist --file checklist.yaml --preview` |
 | Short message | `printime print --template message --title "Alert" --content "Printer is ready" --preview` |
+| Email summary | `printime print examples/email.md --preview` |
 | ASCII art banner | `printime print --ascii "hello" --ascii-font slant --center --preview` |
 | ASCII art font choices | `printime ascii-fonts` |
 | Markdown file | `printime print notes.md --preview` |
@@ -118,6 +119,16 @@ printime print --template note --title "Today" --content "Ship docs" --preview
 ```
 
 `note`, `checklist`, `message`, and `agenda` automatically print `YYYY-MM-DD HH:MM` below the title/subtitle. Override with a `date` field only when the paper should show a specific time.
+
+**Email summary:**
+
+```bash
+printime print examples/email.md --preview
+printime print --template email --file examples/email.json --preview
+printime list email
+```
+
+`email` prints `subject`, `sender`, `to`, `cc`, `reply_to`, `date`, body text, optional `labels`, and optional `message_id`. YAML `from:` maps to `sender`.
 
 **Preview then print:**
 
@@ -186,7 +197,7 @@ printime serve --port 8080
 
 | Mistake | Fix |
 | ------- | --- |
-| Using raw `--text` for notes/checklists/messages | Use `--template note`, `--template checklist`, or `--template message`. |
+| Using raw `--text` for notes/checklists/messages/emails | Use `--template note`, `--template checklist`, `--template message`, or `--template email`. |
 | Using Ctrl+P to POS8370 for articles, Anytype, or tickets | Use `printime print` or `printime serve`. |
 | Printing physically without checking layout | Add `--preview`, then read the preview before adding `--yes`. |
 | Using `pip install` in system Python | Use `pipx install -e ...` or `pipx inject printime ...`. |

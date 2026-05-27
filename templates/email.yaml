@@ -1,0 +1,13 @@
+name: email
+description: Email summary with standard header fields and body
+fields:
+  - subject
+  - sender
+  - to
+  - cc
+  - reply_to
+  - date
+  - body
+  - content
+  - labels
+  - message_id

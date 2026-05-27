@@ -144,6 +144,7 @@ printed text.
 |------|---------|
 | Formatted note | `printime print --template note --title "..." --content "..." --preview` |
 | Message | `printime print --template message --title "..." --content "..." --preview` |
+| Email summary | `printime print examples/email.md --preview` |
 | Note from file | `printime print my-note.md --preview` |
 | Full page (mermaid + QR) | `printime print examples/diagram_flow.md --preview` |
 | QR code | `printime print --qr "https://..."` |

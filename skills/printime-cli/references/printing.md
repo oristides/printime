@@ -30,6 +30,17 @@ items:
 printime print --template checklist --file shopping.yaml --preview
 ```
 
+## Email Summary
+
+Use `email` for compact paper slips with standard header fields (`subject`, `sender`, `to`, `cc`, `reply_to`, `date`, `body`, `labels`, `message_id`).
+
+```bash
+printime print examples/email.md --preview
+printime print --template email --file examples/email.json --preview
+```
+
+YAML `from:` maps to `sender`. `to` and `cc` accept one address or a list. See [templates.md](templates.md).
+
 ## Markdown File
 
 ```bash
