@@ -1,10 +1,9 @@
 ---
 name: printime-cli
 description: >-
-  Use when operating the printime CLI, ESC/POS thermal printers, receipt
-  printing, POS8370, print previews, markdown notes, QR codes, ticket PDFs,
-  Anytype pages, Google Calendar agendas, Google Keep notes, email summaries,
-  templates, or automation via printime serve.
+  Use when operating the Printime CLI, ESC/POS thermal printers, notes, task, checklist and other
+  printing options like markdown notes, QR codes, ticket PDFs,
+  Anytype/Notion/Markdown pages,  email summaries templates, or automation via printime serve.
 metadata:
   repository: ~/Documents/repos/random_projects/printime
   package: printime
@@ -38,187 +37,172 @@ references:
 
 # Printime CLI
 
-Printime is a CLI-first thermal printer tool for **ESC/POS receipt printers** (usually 80mm, 48 columns). Agents should use `printime` commands, templates, previews, or `printime serve`; do not use Ctrl+P to the raw CUPS queue for templated output.
+Printime is a CLI-first thermal printer tool for **ESC/POS receipt printers** (80mm, 48 columns).
 
-## Installation
+---
 
-Check or install the full Python extras in one line:
+## 1 · Before You Print Anything
+
+Run these checks once per session (or after any printer failure):
 
 ```bash
-(command -v printime >/dev/null && printime --version) || pipx install -e ~/Documents/repos/random_projects/printime[all] --force; printime doctor
+# Is printime installed and healthy?
+(command -v printime >/dev/null && printime --version) || \
+  pipx install -e ~/Documents/repos/random_projects/printime[all] --force
+printime doctor
 ```
 
-Do not use system `pip install` on this machine; use `pipx`. For setup, extras, printer config, and update commands, read [references/install.md](references/install.md).
+`CUPS status: idle` is normal (means ready). If `doctor` reports a device or
+permission error, fix it before continuing → [references/troubleshooting.md](references/troubleshooting.md).
 
-Prefer templates over raw text. Templates provide title blocks, automatic minute-precision datetime, structured fields, and consistent receipt layout.
+---
 
-## Agent Protocol
+## 2 · The Preview / Print Contract
 
-The CLI is paper-producing software. Agents should treat physical printing as a side effect.
+**This is the most important rule.** Understand it before issuing any command.
 
-- Use `--template note`, markdown files, or integration-specific templates before falling back to pure `--text`.
-- Use `--preview` to inspect output only. It does not print paper by itself.
-- Read the preview output; check title blocks, QR size, Unicode, section order, and `[CUT]`.
-- Use `--yes` only after preview approval, explicit user confirmation, cron,
-  or other unattended automation. With `--preview --yes`, printime previews
-  first and then prints.
-- Omit `--preview` only when the user explicitly wants immediate physical printing.
-- Never commit `.env`; it may contain Anytype keys, Google Calendar ICS URLs, and Google Keep master tokens.
-- Run `printime doctor` before troubleshooting printer or USB failures.
+| Command form | What happens |
+|---|---|
+| `printime print FILE --preview` | Terminal preview only. **No paper.** |
+| `printime print FILE --preview --yes` | Preview, then print. |
+| `printime print FILE --yes` | Print immediately, no preview. |
+| `printime print FILE` | Print immediately, no preview. |
 
-Detailed preview capture workflow: [references/agent-protocol.md](references/agent-protocol.md).
+**Default for agents: always add `--preview` first. Read the output. Add `--yes` only after:**
+- The user explicitly approved the preview, OR
+- The user asked for immediate physical output, OR
+- The job is trusted cron / automation.
 
-## Command picker
+`[CUT]` in preview output is a marker — it is not printed as text.
 
-| User wants | Command |
-| ------------ | ------- |
-| Quick note | `printime print --template note --title "Today" --content "Ship docs" --preview` |
-| Checklist | `printime print --template checklist --file checklist.yaml --preview` |
-| Short message | `printime print --template message --title "Alert" --content "Printer is ready" --preview` |
-| Email summary | `printime print examples/email.md --preview` |
-| ASCII art banner | `printime print --ascii "hello" --ascii-font slant --center --preview` |
-| ASCII art font choices | `printime ascii-fonts` |
-| Markdown file | `printime print notes.md --preview` |
-| Markdown table | `printime print examples/oriel-mandates.md --preview` |
-| Enriched text | `printime print --markdown --text "# Title\n\n- [ ] Task" --preview` |
-| Today's Google Calendar agenda | `printime agenda --today --preview` |
-| This week from today | `printime agenda --days 7 --preview` |
-| Next Mon-Sun week | `printime agenda --next-week --preview` |
-| Blog / article URL | `printime print --url 'https://...' --preview` |
-| Ticket PDF | `printime print ticket.pdf --preview` |
-| Anytype page | `printime anytype print "Title" --preview` |
-| Google Keep note | `printime keep print "https://keep.google.com/#NOTE/..." --preview` |
-| HTTP automation | `printime serve --port 8080` |
-| Diagnose printer | `printime doctor --test-print` |
-| Big QR code | `printime print --qr "https://..." --qr-size 10` |
-| Plain text fallback | `printime print --text "..."` |
+---
 
-## Available Commands
+## 3 · Choose the Right Command (Decision Tree)
 
-| Command | What it does |
-| ------- | ------------ |
-| `print` | Print text, markdown, QR codes, URLs, images, mermaid diagrams, templates, and ticket PDFs. |
-| `preview` | Render a terminal preview from text, a template, or a context file. |
-| `list` | List templates or show fields for one template. |
-| `ascii-fonts` | List limited thermal-safe ASCII art fonts. |
-| `transform` | Convert markdown, text, LaTeX, or URL content to context/image output. |
-| `doctor` | Diagnose printer config, USB device, CUPS queue, and optional test print. |
-| `serve` | Start a local HTTP print endpoint for app or agent automation. |
-| `agenda` | Print Google Calendar agendas from a private ICS URL. |
-| `anytype` | Search, fetch, and print Anytype Desktop pages. |
-| `keep` | Search, list, and print Google Keep notes via `gkeepapi`. |
+```
+What does the user want to print?
+│
+├─ Personal note / quick memo          →  --template note
+├─ Checkbox / todo list                →  --template checklist --file list.yaml
+├─ Short alert / message slip          →  --template message
+├─ Email summary                       →  --template email  (or examples/email.md)
+├─ Markdown file (.md)                 →  printime print FILE.md
+├─ Enriched markdown inline            →  --markdown --text $'# ...'
+├─ Google Calendar agenda              →  printime agenda --today | --days N | --next-week
+├─ Anytype page                        →  printime anytype print "Title"
+├─ Google Keep note                    →  printime keep print "URL or ID"
+├─ Web article / URL                   →  --url 'https://...'
+├─ Ticket PDF                          →  printime print ticket.pdf
+├─ ASCII art banner                    →  --ascii "text" --ascii-font slant --center
+├─ QR code (standalone)                →  --qr "https://..." --qr-size 10
+├─ Image                               →  --image photo.png
+├─ Mermaid diagram                     →  --mermaid flow.mmd
+├─ HTTP automation                     →  printime serve --port 8080
+└─ Raw text (no template, last resort) →  --text "..."
+```
 
-Full command details: [references/commands.md](references/commands.md).
+---
 
-## Common Patterns
+## 4 · Template Auto-Detection
 
-**Template note first:**
+When printing a `.md` file without `--template`, Printime picks the template automatically:
+
+| Content in the file | Chosen template |
+|---|---|
+| Headings + mermaid or inline QR blocks | `document` |
+| Mermaid only | `diagram` |
+| Checkboxes only | `checklist` |
+| Plain prose | `note` |
+| Positional `.pdf` file | `ticket` |
+
+To force a specific template: `--template <name>` or set `template:` in YAML frontmatter.
+
+Run `printime list` to list all templates. Run `printime list <name>` to see its fields.
+
+---
+
+## 5 · Quick Command Reference
 
 ```bash
+# Notes and messages
 printime print --template note --title "Today" --content "Ship docs" --preview
-```
+printime print --template checklist --file shopping.yaml --preview
+printime print --template message --title "Alert" --content "Printer ready" --preview
 
-`note`, `checklist`, `message`, and `agenda` automatically print `YYYY-MM-DD HH:MM` below the title/subtitle. Override with a `date` field only when the paper should show a specific time.
-
-**Email summary:**
-
-```bash
+# Email
 printime print examples/email.md --preview
 printime print --template email --file examples/email.json --preview
-printime list email
-```
+printime list email                          # show all email fields
 
-`email` prints `subject`, `sender`, `to`, `cc`, `reply_to`, `date`, body text, optional `labels`, and optional `message_id`. YAML `from:` maps to `sender`.
-
-**Preview then print:**
-
-```bash
+# Markdown
 printime print notes.md --preview
-printime print notes.md --yes
-```
+printime print --markdown --text $'# Title\n\n- [ ] Task' --preview
 
-`--preview` is the safe default for agents: it renders the terminal receipt
-and stops. No physical paper is printed unless the command also includes
-`--yes`, or unless you run the print command without `--preview`.
-
-**Tables and enriched markdown:**
-
-```bash
-printime print examples/oriel-mandates.md --preview
-printime print --markdown --text $'# Today\n\n**Top risks**\n\n| Metric | Owner | Status | Next |\n| --- | --- | --- | --- |\n| Activation | Ana | Green | Watch signups |' --preview
-printime anytype print "rETROSUM" --preview
-```
-
-Markdown tables are rendered as receipt-friendly columns; Anytype `<br>` table markup is normalized. On 48-character paper, prefer 2-3 columns for readability, 4 columns for compact dashboards, and 5 columns only for dense summaries.
-
-**ASCII art banners:**
-
-```bash
-printime print --ascii "hello" --ascii-font slant --center --preview
-printime print --markdown --text $'```pagga --center\noriel\n```' --preview
-printime ascii-fonts
-```
-
-ASCII art uses local `pyfiglet` first and wraps by measured rendered width, not just character count. Public font choices are limited to `pagga`, `avatar`, `bulbhead`, `banner`, and `slant`; local `pagga` matches asciified `Pagga` output and keeps native FIGlet spacing. For longer messages, Printime splits words, and also splits one over-wide unbroken word into fitted chunks before using compact internal fallback fonts.
-
-**Google Calendar agenda:**
-
-```bash
+# Calendar / integrations
 printime agenda --today --preview
 printime agenda --days 7 --preview
 printime agenda --next-week --preview
-```
-
-**Print an article with source QR segments:**
-
-```bash
-printime print --url "https://example.com/article" --preview
-```
-
-**Print a ticket PDF:**
-
-```bash
-printime print ~/Downloads/ticket.pdf --preview
-```
-
-**Print an Anytype page:**
-
-```bash
 printime anytype print "Login Flow" --preview
-```
+printime keep print "https://keep.google.com/#NOTE/..." --preview
 
-**Automation endpoint:**
+# Media
+printime print ticket.pdf --preview
+printime print --url "https://example.com/article" --preview
+printime print --qr "https://example.com" --qr-size 10 --show-link --preview
+printime print --ascii "hello" --ascii-font slant --center --preview
 
-```bash
+# Info / diagnostics
+printime list
+printime ascii-fonts
+printime doctor --test-print
+
+# Automation
 printime serve --port 8080
 ```
 
-## Common Mistakes
+---
 
-| Mistake | Fix |
-| ------- | --- |
-| Using raw `--text` for notes/checklists/messages/emails | Use `--template note`, `--template checklist`, `--template message`, or `--template email`. |
-| Using Ctrl+P to POS8370 for articles, Anytype, or tickets | Use `printime print` or `printime serve`. |
-| Printing physically without checking layout | Add `--preview`, then read the preview before adding `--yes`. |
-| Using `pip install` in system Python | Use `pipx install -e ...` or `pipx inject printime ...`. |
-| Expecting Keep URLs to work with `--url` | Use `printime keep print`, because Keep note IDs live in URL fragments. |
-| Dense QR codes from long URLs | Shorten URLs or use article/link QR output instead of a huge raw QR. |
-| Missing diagrams on paper | Install `@mermaid-js/mermaid-cli`; preview still works for text layout. |
-| Garbled Portuguese accents | Set `encoding: cp860` or `cp850` in `config/printer.yaml`. |
+## 6 · Guard-Rails (Common Mistakes to Avoid)
 
-## When to Load References
+| ❌ Wrong | ✅ Right |
+|---|---|
+| `--text` for notes / checklists / messages | Use `--template note`, `checklist`, or `message` |
+| Ctrl+P to POS8370 for articles, Anytype, PDFs | Use `printime print` or `printime serve` |
+| `--yes` without reading preview | Run `--preview` first; only add `--yes` after approval |
+| `pip install` in system Python | Use `pipx install -e ...` or `pipx inject printime ...` |
+| `printime print --url <keep-url>` | Keep URLs use fragments; use `printime keep print` instead |
+| Long URL → huge dense QR code | Shorten URLs above ~300 chars before generating QR |
+| Mermaid missing on paper | `npm install -g @mermaid-js/mermaid-cli` |
+| Garbled Portuguese accents on paper | Set `encoding: cp860` in `config/printer.yaml` |
 
-- **Install, update, extras, printer setup** -> [references/install.md](references/install.md)
-- **Agent-side safe printing and preview capture** -> [references/agent-protocol.md](references/agent-protocol.md)
-- **Flags, subcommands, HTTP endpoint** -> [references/commands.md](references/commands.md)
-- **How to print each content type** -> [references/printing.md](references/printing.md)
-- **Markdown, frontmatter, templates, mermaid, inline QR** -> [references/templates.md](references/templates.md)
-- **Anytype, Google Calendar, Google Keep, HTTP automation** -> [references/integrations.md](references/integrations.md)
-- **Errors, USB, encoding, CUPS, missing deps** -> [references/troubleshooting.md](references/troubleshooting.md)
+---
 
-## Related Project Docs
+## 7 · Key Notes Per Content Type
 
-- [docs/QUICKSTART.md](../../docs/QUICKSTART.md)
-- [docs/COMMANDS.md](../../docs/COMMANDS.md)
-- [docs/CONFIG.md](../../docs/CONFIG.md)
-- [docs/TEMPLATES.md](../../docs/TEMPLATES.md)
+**`note`, `checklist`, `message`, `agenda`** — automatically print `YYYY-MM-DD HH:MM` below the title. Only set `date:` in frontmatter if you need to override with a specific time.
+
+**`email`** — fields: `subject`, `sender` (YAML `from:` maps here), `to`, `cc`, `reply_to`, `date`, `body`, `labels`, `message_id`. `to` and `cc` accept a string or list.
+
+**Tables in markdown** — target 3–4 columns for 48-column paper. 5 columns is the practical max. More than 5 columns renders but becomes unreadable.
+
+**ASCII art fonts** — public choices are limited to: `pagga`, `avatar`, `bulbhead`, `banner`, `slant`. Others are internal fallbacks only. Run `printime ascii-fonts` to confirm.
+
+**Article URLs** — works best on readable article pages. Paywalls and heavy JS may fail. Use `--max-chars 3000` to limit length, or `--max-chars 0` for no limit.
+
+**`printime serve`** — no auth. Use only on localhost, LAN, or Tailscale.
+
+---
+
+## 8 · When to Load References
+
+Load one reference only when you need it. Each file opens with what it contains — confirm you picked the right one.
+
+| Situation | File | Contains |
+|---|---|---|
+| Install, update, extras, printer config | [install.md](references/install.md) | pipx install, **extra → feature** table, `printer.yaml` / `.env` fields |
+| Programmatic preview in Python | [agent-protocol.md](references/agent-protocol.md) | `capture_cli_preview`, `render_and_summarize`, preview inspection checklist |
+| Exact flag name or HTTP JSON body | [commands.md](references/commands.md) | Full flag tables per subcommand, `serve` payloads (no examples) |
+| Non-obvious print details | [printing.md](references/printing.md) | Checklist YAML shape, ticket `.pdf` vs `--ticket`, image width, plain `--text` caveat |
+| Template fields, tables, fences | [templates.md](references/templates.md) | Per-template fields, frontmatter, QR/mermaid fences, **table column limits** |
+| Anytype / Calendar / Keep / HTTP | [integrations.md](references/integrations.md) | Env vars, Desktop vs Bot API, integration commands |
+| Errors, encoding, USB, CUPS | [troubleshooting.md](references/troubleshooting.md) | Problem/fix table, **cp860 for Portuguese**, USB + secrets note |

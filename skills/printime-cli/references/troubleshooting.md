@@ -1,10 +1,12 @@
 # Troubleshooting
 
-Start with:
+**This file contains:** problem/fix table, encoding guidance, USB device setup, CUPS conflicts, article-fetch limits.
+
+**Start here:** `printime doctor` — then `printime <command> --help` for flag typos.
 
 ```bash
 printime doctor
-printime <command> --help
+printime doctor --test-print
 ```
 
 ## Common Problems
@@ -12,46 +14,40 @@ printime <command> --help
 | Problem | Fix |
 |---------|-----|
 | `printime: command not found` | `pipx install -e ~/Documents/repos/random_projects/printime[all] --force` |
-| Ticket PDF import error | `pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless` |
-| Barcode/QR extraction fails | Install `libzbar0`: `sudo apt install libzbar0`. |
-| `requires gkeepapi` | `pipx inject printime gkeepapi`. |
-| Keep auth failed | Regenerate `GOOGLE_KEEP_MASTER_TOKEN`; verify `.env`. |
-| `ANYTYPE_API_KEY not set` | Add Desktop API key to `.env` and keep Anytype Desktop running. |
-| Google Calendar says URL missing | Add `GOOGLE_CALENDAR_ICS_URL` to `.env` or pass `--ics-url`. |
-| Permission denied on `/dev/usb/lp*` | `sudo usermod -aG lp $USER`, then log out and back in. |
-| CUPS status is `idle` | This is normal and means ready. |
-| Ctrl+P prints garbage | Use Printime CLI commands, not raw CUPS printing. |
-| Mermaid missing on paper | `npm install -g @mermaid-js/mermaid-cli`. |
-| Unknown flag or command | Re-run with `printime <command> --help`; the CLI prints suggestions. |
+| Ticket PDF import error | `pipx inject printime pymupdf pyzbar "markitdown[pdf]" opencv-python-headless` + `sudo apt install libzbar0` |
+| Barcode/QR extraction fails | `sudo apt install libzbar0` |
+| `requires gkeepapi` | `pipx inject printime gkeepapi` |
+| Keep auth failed | Regenerate `GOOGLE_KEEP_MASTER_TOKEN`; verify `.env` |
+| `ANYTYPE_API_KEY not set` | Desktop API key in `.env`; Anytype Desktop running |
+| Google Calendar URL missing | `GOOGLE_CALENDAR_ICS_URL` in `.env` or `--ics-url` |
+| Permission denied on `/dev/usb/lp*` | `sudo usermod -aG lp $USER`, re-login |
+| CUPS status `idle` | Normal — queue ready |
+| Ctrl+P prints garbage | Use `printime print`, not raw CUPS for templated jobs |
+| Mermaid missing on paper | `npm install -g @mermaid-js/mermaid-cli` |
+| Unknown flag or command | `printime <command> --help` (suggestions printed) |
 
 ## Encoding and Accents
 
-Preview is UTF-8, but most thermal printers use legacy code pages.
-
-Set `encoding` in `config/printer.yaml`:
+Preview is UTF-8; paper uses legacy code pages from `config/printer.yaml`:
 
 ```yaml
 printer:
   encoding: cp860
 ```
 
-Try:
+| Text | Use |
+|------|-----|
+| Portuguese (`ã`, `õ`, `ç`) | **`cp860`** (default for many Brazilian POS printers). Use `cp850` only if `cp860` still garbles. |
+| Spanish / French / German | `cp850` or `latin-1` |
+| Emoji / CJK | Usually unsupported |
 
-| Text | Encoding |
-|------|----------|
-| Portuguese (`ã`, `õ`, `ç`) | `cp860`, then `cp850` |
-| Spanish/French/German accents | `cp850` or `latin-1` |
-| Emoji/CJK | Usually unsupported on receipt printers |
-
-Run a physical test:
-
-```bash
-printime doctor --test-print
-```
+Verify on paper: `printime doctor --test-print`
 
 ## USB Device
 
-Find the device and IDs:
+Never commit `.env` — it may hold `ANYTYPE_API_KEY`, `GOOGLE_CALENDAR_ICS_URL`, and `GOOGLE_KEEP_MASTER_TOKEN` (full account access).
+
+Find device:
 
 ```bash
 ls -la /dev/usb/lp*
@@ -67,7 +63,7 @@ PRINTER_BACKEND=usb
 
 ## CUPS Conflicts
 
-Printime prefers direct USB ESC/POS. If old CUPS jobs are stuck:
+Printime prefers direct USB ESC/POS. Stuck jobs:
 
 ```bash
 cancel -a POS8370
@@ -78,19 +74,4 @@ Do not route templated output through Ctrl+P.
 
 ## Article Fetching
 
-`printime print --url` works best with readable article pages. Paywalls, Medium, and heavily scripted pages may fail or return poor text.
-
-Use:
-
-```bash
-printime print --url "https://example.com" --max-chars 3000 --preview
-printime print --url "https://example.com" --max-chars 0 --preview
-```
-
-## Secrets
-
-Never commit `.env`. It may contain:
-
-- `ANYTYPE_API_KEY`
-- `GOOGLE_CALENDAR_ICS_URL`
-- `GOOGLE_KEEP_MASTER_TOKEN`
+`printime print --url` works on readable article HTML. Paywalls, Medium, and heavy JS often fail. Use `--max-chars 3000` or `--max-chars 0`.

@@ -1,26 +1,18 @@
 # Commands
 
-Run help when unsure:
+**This file contains:** full flag tables per subcommand, positional file routing, and HTTP `serve` payload shapes. Examples and the preview/print contract are in [SKILL.md](../SKILL.md) §2 and §5 — load this file when you need an exact flag name or API body.
 
-```bash
-printime --help
-printime print --help
-printime anytype --help
-```
-
-Invalid commands and unknown flags print suggestions plus relevant help.
+Run `printime <command> --help` for live help; typos print suggestions.
 
 ## Global
 
-```bash
-printime --version
-```
+| Flag | Use |
+| ---- | --- |
+| `--version`, `-v` | CLI version |
 
 ## `print`
 
-Primary command for physical output.
-
-```bash
+```text
 printime print [OPTIONS] [FILE]
 ```
 
@@ -28,172 +20,142 @@ Positional `FILE` routing:
 
 | File type | Behavior |
 | --------- | -------- |
-| `.md` | Markdown input; auto-detects template. |
-| `.pdf` | Ticket PDF input. |
-| `.json`, `.yaml`, `.yml` | Template context file. |
-
-Common flags:
+| `.md` | Markdown; auto-detects template (see SKILL.md §4) |
+| `.pdf` | Ticket PDF |
+| `.json`, `.yaml`, `.yml` | Template context file |
 
 | Flag | Use |
 | ---- | --- |
-| `--file`, `-f` | Context file (`.md`, `.json`, `.yaml`). |
-| `--md` | Explicit markdown file. |
-| `--text`, `-t` | Plain or markdown text. |
-| `--markdown`, `-m` | Parse `--text` / `--content` as markdown. |
-| `--template` | Force a template: `note`, `checklist`, `document`, `diagram`, `task`, `jira`, `message`, `email`, `receipt`, `heading`, `agenda`, `equation`, `ticket`. Run `printime list <name>` for fields. |
-| `--title` | Template title. |
-| `--content` | Template body. |
-| `--priority` | Priority (`HIGH`, `MEDIUM`, `LOW`). |
-| `--tags` | Comma-separated tags. |
-| `--url` | Fetch and print a web article. |
-| `--max-chars` | URL article limit; `0` means no limit. |
-| `--ticket` | Print ticket PDF. Positional `.pdf` also works. |
-| `--image` | Print PNG/JPG. |
-| `--mermaid` | Render `.mmd` and print image. |
-| `--qr` | Print a standalone QR page. |
-| `--qr-size` | QR module size 4-12, default 8. |
-| `--show-link` | Print URL text below standalone QR. |
-| `--link-qr` | Add mini QR codes for URLs in markdown/text. |
-| `--bold` | Bold text. |
-| `--center` | Center align. |
-| `--double-height` | Double-height text. |
-| `--ascii` | Render text as ASCII art. |
-| `--ascii-font` | Limited ASCII font choice: `pagga`, `avatar`, `bulbhead`, `banner`, or `slant`. |
-| `--ascii-api-fallback` | Try the asciified API if local rendering fails. |
-| `--ascii-strict` | Fail instead of falling back to a compact font. |
-| `--preview`, `-p` | Render terminal preview only; no paper by itself. |
-| `--yes`, `-y` | Print immediately, or print after `--preview`. |
-| `--no-cut` | Do not cut paper. |
-| `--test` | `qr`, `text`, or `all`. |
-
-Examples:
-
-```bash
-printime print --template note --title "Today" --content "Ship docs" --preview
-printime print --template message --title "Alert" --content "Printer ready" --preview
-printime print examples/email.md --preview
-printime print notes.md --preview
-printime print examples/oriel-mandates.md --preview
-printime print --markdown --text $'# Today\n\n**Top risks**\n\n| Metric | Owner | Status | Next |\n| --- | --- | --- | --- |\n| Activation | Ana | Green | Watch signups |' --preview
-printime print --ascii "hello" --ascii-font slant --center --preview
-printime print --markdown --text $'```pagga --center\noriel\n```' --preview
-printime ascii-fonts
-printime print ticket.pdf --preview
-printime print --url "https://example.com/article" --preview
-printime print --qr "https://example.com" --qr-size 10 --show-link
-printime print --text "Hello"  # raw text fallback only
-```
+| `--file`, `-f` | Context file (`.md`, `.json`, `.yaml`) |
+| `--md` | Explicit markdown file |
+| `--text`, `-t` | Plain or markdown text |
+| `--markdown`, `-m` | Parse `--text` / `--content` as markdown |
+| `--template` | Force template: `note`, `checklist`, `document`, `diagram`, `task`, `jira`, `message`, `email`, `receipt`, `heading`, `agenda`, `equation`, `ticket` — `printime list <name>` for fields |
+| `--title` | Template title |
+| `--content` | Template body |
+| `--priority` | `HIGH`, `MEDIUM`, `LOW` |
+| `--tags` | Comma-separated tags |
+| `--url` | Fetch and print web article |
+| `--max-chars` | URL limit; `0` = no limit (default 12000) |
+| `--ticket` | Ticket PDF path (positional `.pdf` equivalent) |
+| `--image` | PNG/JPG file |
+| `--mermaid` | Render `.mmd` via mermaid-cli |
+| `--qr` | Standalone QR page |
+| `--qr-size` | Module size 4–12 (default 8) |
+| `--show-link` | URL text below standalone QR |
+| `--link-qr` | Mini QRs for URLs in markdown/articles |
+| `--bold` | Bold text |
+| `--center` | Center align |
+| `--double-height` | Double-height text |
+| `--ascii` | ASCII art banner |
+| `--ascii-font` | `pagga`, `avatar`, `bulbhead`, `banner`, `slant` |
+| `--ascii-api-fallback` | asciified API if local render fails |
+| `--ascii-strict` | Fail instead of compact font fallback |
+| `--preview`, `-p` | Terminal preview only |
+| `--yes`, `-y` | Print immediately or after preview |
+| `--no-cut` | Skip paper cut |
+| `--test` | `qr`, `text`, or `all` |
 
 ## `preview`
 
-Render terminal output. Add `--yes` only when you want physical paper after
-the preview.
-
-```bash
-printime preview --file examples/note.md
-printime preview --template note --title "Test" --content "Hello"
-printime preview --text "Raw line"
-```
+| Flag | Use |
+| ---- | --- |
+| `--text`, `-t` | Text to preview |
+| `--template` | Template name |
+| `--title`, `--content` | Template fields |
+| `--file`, `-f` | Context file |
+| `--yes`, `-y` | Print after preview |
+| `--no-cut` | Skip cut |
 
 ## `list`
 
-List templates or fields for a template.
-
-```bash
-printime list
-printime list --verbose
-printime list document
-```
+| Arg / flag | Use |
+| ---------- | --- |
+| `[template]` | Fields for one template |
+| `--verbose`, `-v` | All templates with fields |
 
 ## `ascii-fonts`
 
-List the limited thermal-safe ASCII art fonts available for `--ascii-font` and markdown fences.
-
-```bash
-printime ascii-fonts
-```
-
-Public font choices are limited to `pagga`, `avatar`, `bulbhead`, `banner`, and `slant`; compact fallback fonts are internal only.
+Lists thermal-safe fonts for `--ascii-font` and markdown fences (no flags).
 
 ## `transform`
 
-Convert input to context/text/image, or preview through a template.
-
-```bash
-printime transform examples/note.md
-printime transform examples/note.md --template note --preview
-printime transform examples/note.md -o context.json
-printime transform --url "https://example.com" --template note --preview
-```
+| Flag | Use |
+| ---- | --- |
+| `input` | `.md`, `.tex`, `.txt` |
+| `--type`, `-t` | `context`, `text`, `image` (auto from extension) |
+| `--template` | Wrap output in template |
+| `--output`, `-o` | Output file (default stdout) |
+| `--url` | Fetch article instead of local file |
+| `--max-chars` | URL limit |
+| `--preview`, `-p` | Preview only |
+| `--yes`, `-y` | Print after preview |
 
 ## `doctor`
 
-Diagnose printer and optionally print a test page.
-
-```bash
-printime doctor
-printime doctor --test-print
-```
+| Flag | Use |
+| ---- | --- |
+| `--test-print` | Send test page |
 
 ## `serve`
 
-Start a local HTTP server for automation.
+| Flag | Use |
+| ---- | --- |
+| `--port`, `-p` | Port (default 8080) |
 
-```bash
-printime serve --port 8080
+**Health:** `GET /health`
+
+**Print template:**
+
+```json
+{"template":"note","context":{"title":"Hi","content":"From HTTP"}}
 ```
 
-Health check:
+**Print email:**
 
-```bash
-curl http://localhost:8080/health
+```json
+{"template":"email","context":{"subject":"Deploy","sender":"ana@co.com","to":"you@co.com","body":"Review before 6pm."}}
 ```
 
-Print endpoint:
+**Raw text + QR:**
 
-```bash
-curl -X POST http://localhost:8080/print \
-  -H 'Content-Type: application/json' \
-  -d '{"template":"note","context":{"title":"Hi","content":"From HTTP"}}'
+```json
+{"text":"Hello","qr":"https://example.com","cut":true}
 ```
 
-Use only on trusted LAN/Tailscale networks; there is no auth.
+No auth — localhost, LAN, or Tailscale only.
 
 ## `agenda`
 
-Print Google Calendar from a private ICS URL.
+| Flag | Use |
+| ---- | --- |
+| `--today` | Today's events (default window) |
+| `--days N` | Next N days from today |
+| `--next-week` | Mon–Sun of next calendar week |
+| `--ics-url` | Override `GOOGLE_CALENDAR_ICS_URL` |
+| `--preview`, `-p` | Preview only |
+| `--yes`, `-y` | Print |
 
-```bash
-printime agenda --today --preview
-printime agenda --preview
-printime agenda --days 3 --preview
-printime agenda --days 7 --preview
-printime agenda --next-week --yes
-printime agenda --ics-url "https://calendar.google.com/calendar/ical/..."
-```
-
-`--today` is the explicit form of the default one-day agenda. Agenda output includes event time, title, location, and notes/details from the ICS description when present.
+Event output: time, title, location, notes from ICS description when present.
 
 ## `anytype`
 
-Search and print Anytype Desktop pages.
+| Subcommand | Use |
+| ---------- | --- |
+| `list` | Spaces / pages |
+| `search "query"` | Search pages |
+| `print "Title"` | Print by page title |
+| `fetch <object-id>` | Print by ID |
+| `join "<invite>"` | Bot API: join space |
 
-```bash
-printime anytype list
-printime anytype search "Login"
-printime anytype print "Login Flow" --preview
-printime anytype print "Login Flow" --template note --preview
-printime anytype fetch <object-id> --preview
-printime anytype join "<invite-link>"
-```
+Flags on `print` / `fetch`: `--template`, `--preview`, `--yes`, `--no-cut`.
 
 ## `keep`
 
-Search and print Google Keep notes.
+| Subcommand | Use |
+| ---------- | --- |
+| `list` | Notes |
+| `search "query"` | Search |
+| `print "URL or ID"` | Print note |
 
-```bash
-printime keep list
-printime keep search "shopping"
-printime keep print "https://keep.google.com/#NOTE/abc..." --preview
-printime keep print "abc..." --yes
-```
+Flags: `--preview`, `--yes`. Keep URLs need `keep print`, not `print --url`.
