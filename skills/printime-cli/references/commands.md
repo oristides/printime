@@ -36,24 +36,31 @@ Common flags:
 
 | Flag | Use |
 | ---- | --- |
+| `--file`, `-f` | Context file (`.md`, `.json`, `.yaml`). |
+| `--md` | Explicit markdown file. |
 | `--text`, `-t` | Plain or markdown text. |
+| `--markdown`, `-m` | Parse `--text` / `--content` as markdown. |
+| `--template` | Force a template: `note`, `checklist`, `document`, `diagram`, `task`, `jira`, `message`, `email`, `receipt`, `heading`, `agenda`, `equation`, `ticket`. Run `printime list <name>` for fields. |
+| `--title` | Template title. |
+| `--content` | Template body. |
+| `--priority` | Priority (`HIGH`, `MEDIUM`, `LOW`). |
+| `--tags` | Comma-separated tags. |
+| `--url` | Fetch and print a web article. |
+| `--max-chars` | URL article limit; `0` means no limit. |
+| `--ticket` | Print ticket PDF. Positional `.pdf` also works. |
+| `--image` | Print PNG/JPG. |
+| `--mermaid` | Render `.mmd` and print image. |
+| `--qr` | Print a standalone QR page. |
+| `--qr-size` | QR module size 4-12, default 8. |
+| `--show-link` | Print URL text below standalone QR. |
+| `--link-qr` | Add mini QR codes for URLs in markdown/text. |
+| `--bold` | Bold text. |
+| `--center` | Center align. |
+| `--double-height` | Double-height text. |
 | `--ascii` | Render text as ASCII art. |
 | `--ascii-font` | Limited ASCII font choice: `pagga`, `avatar`, `bulbhead`, `banner`, or `slant`. |
 | `--ascii-api-fallback` | Try the asciified API if local rendering fails. |
 | `--ascii-strict` | Fail instead of falling back to a compact font. |
-| `--markdown`, `-m` | Parse `--text` / `--content` as markdown. |
-| `--link-qr` | Add mini QR codes for URLs in markdown/text. |
-| `--ticket` | Print ticket PDF. Positional `.pdf` also works. |
-| `--url` | Fetch and print a web article. |
-| `--qr` | Print a standalone QR page. |
-| `--qr-size` | QR module size 4-12, default 8. |
-| `--show-link` | Print URL text below standalone QR. |
-| `--template` | Force a template. |
-| `--file`, `-f` | Context file (`.md`, `.json`, `.yaml`). |
-| `--md` | Explicit markdown file. |
-| `--image` | Print PNG/JPG. |
-| `--mermaid` | Render `.mmd` and print image. |
-| `--max-chars` | URL article limit; `0` means no limit. |
 | `--preview`, `-p` | Render terminal preview only; no paper by itself. |
 | `--yes`, `-y` | Print immediately, or print after `--preview`. |
 | `--no-cut` | Do not cut paper. |

@@ -1,5 +1,6 @@
 {{ "=" * width }}
 {{ "JIRA TICKET" | center(width) }}
+{{ date | default(now, true) | center(width) }}
 {{ "=" * width }}
 
 {{ ticket_id }} {{ summary | truncate(width - ticket_id | length - 1, True) }}

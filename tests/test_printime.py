@@ -98,6 +98,26 @@ class TestTemplates:
                 'empty_message': 'No events scheduled.',
                 'source': 'Google Calendar',
             },
+            'email': {
+                'subject': 'Subject',
+                'sender': 'a@b.com',
+                'to': 'c@d.com',
+                'body': 'Body',
+            },
+            'document': {'title': 'Doc', 'content': 'Body'},
+            'jira': {
+                'ticket_id': 'ABC-1',
+                'summary': 'Fix bug',
+                'description': 'Details',
+            },
+            'task': {'title': 'Task', 'description': 'Do thing'},
+            'ticket': {'title': 'Event', 'caption': 'Venue'},
+            'heading': {'text': 'Section', 'style': 'bar'},
+            'receipt': {
+                'store_name': 'Shop',
+                'items': [{'name': 'Item', 'price': '1.00'}],
+                'total': '1.00',
+            },
         }
 
         for template_name, context in contexts.items():
@@ -110,6 +130,18 @@ class TestTemplates:
                 r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}',
                 rendered,
             ), template_name
+
+    def test_diagram_and_equation_skip_print_timestamp(self):
+        from printime.preview import render_template_for_print
+
+        config = load_config()
+        ts = r'\d{4}-\d{2}-\d{2} \d{2}:\d{2}'
+        for template_name, context in {
+            'diagram': {'title': 'Flow', 'mermaid': 'graph TD; A-->B'},
+            'equation': {'latex': 'E=mc^2'},
+        }.items():
+            rendered = render_template_for_print(template_name, context, config)
+            assert not re.search(ts, rendered), template_name
 
     def test_load_email_template(self):
         config = load_config()

@@ -60,11 +60,12 @@ class PaperPreview:
             self._add_border_top()
 
     def add_title_header(self, title: str, caption: str | None = None) -> None:
-        """Title block: === lines with title and optional caption from frontmatter."""
+        """Title block: === lines with title, optional caption, and print timestamp."""
         self._add_separator('=')
         self._add_line(normalize_preview_text(title).upper().ljust(self.width))
         if caption:
             self._add_line(normalize_preview_text(caption).ljust(self.width))
+        self._add_line(_get_timestamp().center(self.width))
         self._add_separator('=')
         self._add_blank()
 

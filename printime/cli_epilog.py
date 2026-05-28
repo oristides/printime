@@ -3,10 +3,28 @@
 
 from __future__ import annotations
 
-MAIN_EPILOG = """
+TEMPLATE_NAMES = (
+    'note',
+    'checklist',
+    'document',
+    'diagram',
+    'task',
+    'jira',
+    'message',
+    'email',
+    'receipt',
+    'heading',
+    'agenda',
+    'equation',
+    'ticket',
+)
+
+TEMPLATE_CHOICES_HELP = ', '.join(TEMPLATE_NAMES)
+
+MAIN_EPILOG = f"""
 Templates (see: printime list, printime list <name>):
-  note, checklist, document, diagram, task, jira, message, email,
-  receipt, heading, agenda, equation, ticket
+  {', '.join(TEMPLATE_NAMES[:7])},
+  {', '.join(TEMPLATE_NAMES[7:])}
 
 Examples:
   printime print --template note --title "Today" \\

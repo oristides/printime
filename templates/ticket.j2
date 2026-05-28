@@ -1,5 +1,6 @@
 {{ "=" * width }}
 {{ title | upper | center(width) }}
+{{ date | default(now, true) | center(width) }}
 {{ "=" * width }}
 {% if caption %}
 {{ caption | center(width) }}

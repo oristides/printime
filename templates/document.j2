@@ -3,6 +3,7 @@
 {% if caption %}
 {{ caption | ljust(width) }}
 {% endif %}
+{{ date | default(now, true) | center(width) }}
 {{ "=" * width }}
 
 {% if segments %}

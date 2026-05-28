@@ -12,3 +12,4 @@
 {{ text }}
 {{ "-" * width }}
 {% endif %}
+{{ date | default(now, true) | center(width) }}

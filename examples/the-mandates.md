@@ -1,4 +1,4 @@
-# Oriel mandates   
+# the mandates   
 1. Difference between Objectives vs Contraints   
 2. Self-guided for the common purpose is better for us.   
 3. Don't fear, be direct and respectful feedback is about outcome, Not about the person.   

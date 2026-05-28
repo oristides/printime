@@ -1431,7 +1431,7 @@ def cmd_serve(args, config):
 
 
 def main():
-    from printime.cli_epilog import MAIN_EPILOG, PRINT_EPILOG
+    from printime.cli_epilog import MAIN_EPILOG, PRINT_EPILOG, TEMPLATE_CHOICES_HELP
     from printime.cli_help import HelpfulArgumentParser, PARSER_REGISTRY
     from printime.services.ascii_art import supported_font_names
 
@@ -1453,7 +1453,35 @@ def main():
     )
     PARSER_REGISTRY['print'] = print_parser
     print_parser.add_argument('input', nargs='?', help='Input file (.md, .pdf, .json, .yaml)')
+    print_parser.add_argument('--file', '-f', help='Context file (.md, .json, or .yaml)')
+    print_parser.add_argument('--md', help='Print markdown file (.md)')
     print_parser.add_argument('--text', '-t', help='Text to print')
+    print_parser.add_argument('--markdown', '-m', action='store_true',
+                              help='Parse --text / --content as markdown (# headings, **bold**, lists)')
+    print_parser.add_argument(
+        '--template',
+        help=f'Template name ({TEMPLATE_CHOICES_HELP}; printime list <name> for fields)',
+    )
+    print_parser.add_argument('--title', help='Title for template')
+    print_parser.add_argument('--content', help='Content for template')
+    print_parser.add_argument('--priority', help='Priority (HIGH, MEDIUM, LOW)')
+    print_parser.add_argument('--tags', help='Tags (comma-separated)')
+    print_parser.add_argument('--url', help='Fetch and print a web article (blog post, Substack, etc.)')
+    print_parser.add_argument('--max-chars', type=int, default=12000,
+                              help='Max article characters for --url (0 = no limit, default: 12000)')
+    print_parser.add_argument('--ticket', help='Print ticket PDF (extract QR/barcodes in order)')
+    print_parser.add_argument('--image', help='Print a PNG/JPG image file')
+    print_parser.add_argument('--mermaid', help='Render a .mmd file (mermaid-cli) and print')
+    print_parser.add_argument('--qr', help='Print QR code with data')
+    print_parser.add_argument('--qr-size', type=int, default=8,
+                              help='QR module size 4-12, default 8 (larger = bigger code)')
+    print_parser.add_argument('--show-link', action='store_true',
+                              help='Print the URL text below the QR code')
+    print_parser.add_argument('--link-qr', action='store_true',
+                              help='Add mini QR codes for URLs in markdown or --url articles')
+    print_parser.add_argument('--bold', action='store_true', help='Bold text')
+    print_parser.add_argument('--center', action='store_true', help='Center align')
+    print_parser.add_argument('--double-height', action='store_true', help='Double height text')
     print_parser.add_argument('--ascii', help='Render text as receipt-safe ASCII art')
     print_parser.add_argument(
         '--ascii-font',
@@ -1465,34 +1493,9 @@ def main():
                               help='Use asciified API if local pyfiglet rendering fails')
     print_parser.add_argument('--ascii-strict', action='store_true',
                               help='Fail if the requested ASCII font cannot fit')
-    print_parser.add_argument('--markdown', '-m', action='store_true',
-                              help='Parse --text / --content as markdown (# headings, **bold**, lists)')
-    print_parser.add_argument('--link-qr', action='store_true',
-                              help='Add mini QR codes for URLs in markdown or --url articles')
-    print_parser.add_argument('--ticket', help='Print ticket PDF (extract QR/barcodes in order)')
-    print_parser.add_argument('--title', help='Title for template')
-    print_parser.add_argument('--content', help='Content for template')
-    print_parser.add_argument('--priority', help='Priority (HIGH, MEDIUM, LOW)')
-    print_parser.add_argument('--tags', help='Tags (comma-separated)')
-    print_parser.add_argument('--md', help='Print markdown file (.md)')
-    print_parser.add_argument('--url', help='Fetch and print a web article (blog post, Substack, etc.)')
-    print_parser.add_argument('--image', help='Print a PNG/JPG image file')
-    print_parser.add_argument('--mermaid', help='Render a .mmd file (mermaid-cli) and print')
-    print_parser.add_argument('--max-chars', type=int, default=12000,
-                              help='Max article characters for --url (0 = no limit, default: 12000)')
-    print_parser.add_argument('--qr', help='Print QR code with data')
-    print_parser.add_argument('--qr-size', type=int, default=8,
-                              help='QR module size 4-12, default 8 (larger = bigger code)')
-    print_parser.add_argument('--show-link', action='store_true',
-                              help='Print the URL text below the QR code')
-    print_parser.add_argument('--template', help='Template name to use')
-    print_parser.add_argument('--file', '-f', help='Context file (.md, .json, or .yaml)')
-    print_parser.add_argument('--bold', action='store_true', help='Bold text')
-    print_parser.add_argument('--center', action='store_true', help='Center align')
-    print_parser.add_argument('--double-height', action='store_true', help='Double height text')
     print_parser.add_argument('--preview', '-p', action='store_true', help='Preview only; no paper unless --yes')
-    print_parser.add_argument('--no-cut', action='store_true', help='Do not cut paper')
     print_parser.add_argument('--yes', '-y', action='store_true', help='Print immediately, or print after preview')
+    print_parser.add_argument('--no-cut', action='store_true', help='Do not cut paper')
     print_parser.add_argument('--test', choices=['qr', 'text', 'all'], help='Run test print')
 
     serve_parser = subparsers.add_parser('serve', help='Start HTTP server')

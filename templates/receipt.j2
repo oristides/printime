@@ -3,7 +3,7 @@
 {{ "=" * width }}
 {% endif %}
 
-Date: {{ date | default('NOW') | format_date }}
+{{ date | default(now, true) | center(width) }}
 
 {% for item in items %}
 {{ item.name | truncate(width - 10, True) | ljust(width - 10) }}{{ item.price | rjust(10) }}
