@@ -259,16 +259,16 @@ Checkbox list. Auto datetime under title.
 
 ```bash
 printime print --template checklist --title "Market" \
-  --items "Milk|Bread::x|Eggs|Butter|Coffee::x" --preview
+  --items "Milk|Bread::done|Eggs|Butter|Coffee::done" --preview
 ```
 
 | Token | Result |
 | ----- | ------ |
 | `Milk` | unchecked |
-| `Bread::x` | checked |
+| `Bread::done` | checked |
 | `Deploy: staging` | unchecked (colon is part of label) |
 
-Separator: `|`. Checked: `::x`, `::checked`, or `::done`.
+Separator: `|`. Checked: `::done` or `::checked`.
 
 **Markdown file** (`examples/checklist.md`):
 

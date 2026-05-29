@@ -22,7 +22,7 @@ printime doctor --test-print
 | Google Calendar URL missing | `GOOGLE_CALENDAR_ICS_URL` in `.env` or `--ics-url` |
 | Permission denied on `/dev/usb/lp*` | `sudo usermod -aG lp $USER`, re-login |
 | CUPS status `idle` | Normal — queue ready |
-| Ctrl+P prints garbage | Use `printime print`, not raw CUPS for templated jobs |
+| Ctrl+P prints garbage | Use `printime` intent commands or `printime print`, not raw CUPS for templated jobs |
 | Mermaid missing on paper | `npm install -g @mermaid-js/mermaid-cli` |
 | Unknown flag or command | `printime <command> --help` (suggestions printed) |
 
@@ -74,4 +74,4 @@ Do not route templated output through Ctrl+P.
 
 ## Article Fetching
 
-`printime print --url` works on readable article HTML. Paywalls, Medium, and heavy JS often fail. Use `--max-chars 3000` or `--max-chars 0`.
+`printime url "https://…"` works on readable article HTML. Paywalls, Medium, and heavy JS often fail. Use `--max-chars 3000` or `--max-chars 0`.

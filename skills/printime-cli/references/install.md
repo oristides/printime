@@ -31,7 +31,7 @@ pipx reinstall printime
 | Extra / package | Enables | If missing |
 |-----------------|---------|------------|
 | `[all]` (recommended) | Ticket PDF, Keep, common deps in one install | Various import errors per feature |
-| `pymupdf`, `pyzbar`, `markitdown[pdf]`, `opencv-python-headless` | `printime print ticket.pdf` / `--ticket` | PDF import or barcode extraction errors |
+| `pymupdf`, `pyzbar`, `markitdown[pdf]`, `opencv-python-headless` | `printime ticket path.pdf` | PDF import or barcode extraction errors |
 | `libzbar0` (apt) | QR/barcode decode from ticket PDFs | Extraction fails silently or errors |
 | `gkeepapi` | `printime keep` | `requires gkeepapi` |
 | `@mermaid-js/mermaid-cli` (npm global) | `--mermaid` and ` ```mermaid ` in markdown | Diagram missing on paper |

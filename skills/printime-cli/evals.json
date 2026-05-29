@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "mode": "agent",
+  "description": "Real-world agent evals. Agent receives only SKILL.md, executes printime commands (max 4 tries), must match the expected command exactly.",
+  "simulation": {
+    "context": ["SKILL.md"],
+    "agent_rules": [
+      "No repo access, no reference docs, no bundled CLI help.",
+      "Only SKILL.md content is embedded in the agent prompt.",
+      "Each attempt runs the agent's command; stdout/stderr is fed back for the next try.",
+      "Grading is exact token-for-token match against expected — no partial contains rules."
+    ],
+    "scoring": {
+      "match": "exact",
+      "max_attempts": 4,
+      "metric": "1 / first_exact_match_attempt",
+      "zero_if_never_correct": true,
+      "failed_attempts_count": 4,
+      "goal": "first exact match on every case"
+    }
+  },
+  "cases": [
+    {
+      "id": "task-comer-arroz",
+      "lang": "en",
+      "prompt": "print task comer arroz hoy",
+      "expected": "printime task --body \"comer arroz hoy\"",
+      "notes": "Single task card, not a checkbox list."
+    },
+    {
+      "id": "checklist-votar",
+      "lang": "en",
+      "prompt": "print tasks: Votar",
+      "expected": "printime checklist --title Tasks --items Votar",
+      "notes": "Checkbox list (tasks:), not a single task card."
+    },
+    {
+      "id": "checklist-checked-items",
+      "lang": "en",
+      "prompt": "print checklist: Milk, Bread done, Eggs",
+      "expected": "printime checklist --items \"Milk|Bread::done|Eggs\"",
+      "notes": "Checked items use ::done in --items. Title omitted → default Checklist."
+    },
+    {
+      "id": "message-last-reply",
+      "lang": "es",
+      "prompt": "imprime el ultimo mensaje que me enviaste",
+      "requires_context": true,
+      "context_fixture": {
+        "last_assistant_message": "Recuerda votar antes del mediodía."
+      },
+      "expected": "printime message --title Mensaje --body \"Recuerda votar antes del mediodía.\"",
+      "notes": "Body comes from conversation context_fixture."
+    },
+    {
+      "id": "url-print-link",
+      "lang": "es",
+      "prompt": "imprime este link https://example.com/article",
+      "expected": "printime url https://example.com/article"
+    },
+    {
+      "id": "note-memo",
+      "lang": "en",
+      "prompt": "print a note: call dentist tomorrow",
+      "expected": "printime note --title Memo --body \"call dentist tomorrow\""
+    },
+    {
+      "id": "qr-link",
+      "lang": "en",
+      "prompt": "print QR for https://example.com",
+      "expected": "printime qr https://example.com",
+      "notes": "QR code, not a full URL article print."
+    },
+    {
+      "id": "task-print-paper",
+      "lang": "en",
+      "prompt": "print this task on paper now: buy milk",
+      "expected": "printime task --body \"buy milk\" --print",
+      "notes": "User asked for paper; --print is required."
+    },
+    {
+      "id": "message-alert",
+      "lang": "en",
+      "prompt": "print an alert: printer is ready",
+      "expected": "printime message --title Alert --body \"printer is ready\""
+    },
+    {
+      "id": "ascii-banner",
+      "lang": "en",
+      "prompt": "print ascii banner hello",
+      "expected": "printime ascii hello"
+    },
+    {
+      "id": "checklist-compras-pt",
+      "lang": "pt",
+      "prompt": "imprima a lista de compras: arroz, feijão, café, leite, pão (já comprei), açúcar, óleo, frutas",
+      "expected": "printime checklist --title Compras --items \"arroz|feijão|café|leite|pão::done|açúcar|óleo|frutas\"",
+      "notes": "Big grocery checklist; pão já comprei → ::done. Plural lista = checklist not task."
+    },
+    {
+      "id": "checklist-weekly-en",
+      "lang": "en",
+      "prompt": "print my weekly todos: gym, groceries done, call mom, pay rent checked, dentist, code review, laundry",
+      "expected": "printime checklist --title Weekly --items \"gym|groceries::done|call mom|pay rent::checked|dentist|code review|laundry\"",
+      "notes": "Long checklist; mixed ::done and ::checked markers for completed items."
+    },
+    {
+      "id": "checklist-viaje-es",
+      "lang": "es",
+      "prompt": "imprime checklist del viaje: pasaporte, boletos, hotel, cargador ya listo, audífonos, seguro, efectivo",
+      "expected": "printime checklist --title Viaje --items \"pasaporte|boletos|hotel|cargador::done|audífonos|seguro|efectivo\"",
+      "notes": "Travel checklist; cargador ya listo → ::done."
+    },
+    {
+      "id": "url-noticia-pt",
+      "lang": "pt",
+      "prompt": "imprime essa matéria completa https://news.example.com/br/economia/inflacao",
+      "expected": "printime url https://news.example.com/br/economia/inflacao",
+      "notes": "matéria completa = web article (url), not QR."
+    },
+    {
+      "id": "qr-codigo-es",
+      "lang": "es",
+      "prompt": "imprime un código QR para escanear https://parking.example.com/ticket/ABC123",
+      "expected": "printime qr https://parking.example.com/ticket/ABC123",
+      "notes": "código QR / escanear → qr intent, not url article."
+    },
+    {
+      "id": "qr-wifi-en",
+      "lang": "en",
+      "prompt": "print a QR I can scan to join the wifi: WIFI:S:CafeNet;T:WPA;P:guest2024;;",
+      "expected": "printime qr \"WIFI:S:CafeNet;T:WPA;P:guest2024;;\"",
+      "notes": "WiFi payload is QR data, not a URL article."
+    },
+    {
+      "id": "markdown-inline-en",
+      "lang": "en",
+      "prompt": "print this markdown # Sprint Review\n\n- fix bug\n- ship release\n- update docs",
+      "expected": "printime print --markdown --text \"# Sprint Review\n\n- fix bug\n- ship release\n- update docs\"",
+      "notes": "Inline markdown → legacy print --markdown --text (not plain note --body)."
+    },
+    {
+      "id": "markdown-file-pt",
+      "lang": "pt",
+      "prompt": "imprima o arquivo receita.md",
+      "expected": "printime print receita.md",
+      "fixture_files": {
+        "receita.md": "# Bolo de cenoura\n\n## Ingredientes\n\n- cenouras\n- ovos\n- farinha\n- açúcar\n"
+      },
+      "notes": "Markdown file on disk → legacy print positional .md file."
+    },
+    {
+      "id": "task-manana-es",
+      "lang": "es",
+      "prompt": "imprime la tarea para mañana: renovar el seguro del coche",
+      "expected": "printime task --body \"renovar el seguro del coche\"",
+      "notes": "Singular tarea = task card, not checklist (no comma list)."
+    },
+    {
+      "id": "email-resumo-pt",
+      "lang": "pt",
+      "prompt": "imprima resumo do email: Reunião cancelada — remarcar na sexta às 15h",
+      "expected": "printime email --title Resumo --body \"Reunião cancelada — remarcar na sexta às 15h\"",
+      "notes": "resumo do email → email intent, not message or note."
+    }
+  ]
+}

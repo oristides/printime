@@ -37,44 +37,30 @@ sudo usermod -aG lp $USER
 # log out and back in
 ```
 
-## 3. Print a formatted note
+## 3 · Print (intent commands)
 
-Prefer templates over raw text. `note`, `checklist`, `message`, and `agenda` add an automatic `YYYY-MM-DD HH:MM` line under the title/subtitle.
-
-```bash
-printime print --template note \
-  --title "Quick note" \
-  --content "Call dentist tomorrow at 3pm" \
-  --preview
-```
-
-## 4. More ways to print
-
-### Option A — inline (fastest)
+Default = **terminal preview**. Add **`--print`** for paper.
 
 ```bash
-printime print --template note \
-  --title "Quick note" \
-  --content "Call dentist tomorrow at 3pm" \
-  --preview
+printime note --body "Call dentist tomorrow"
+printime checklist --title "Shopping" --items "Milk|Bread::done"
+printime task --body "comer arroz hoy"
 ```
 
-Print immediately:
+## 4 · More ways to print
+
+### Option A — intent commands
 
 ```bash
-printime print --template note \
-  --title "Quick note" \
-  --content "Call dentist tomorrow at 3pm"
+printime note --body "Call dentist tomorrow"
+printime checklist --title "Shopping" --items "Milk|Bread::done"
 ```
 
-### Checklist (no file)
+Print to paper:
 
 ```bash
-printime print --template checklist --title "Shopping" \
-  --items "Milk|Bread::x|Eggs|Butter" --preview
+printime note --title "Quick note" --body "Call dentist" --print
 ```
-
-Checked items: append `::x` or `::checked` (e.g. `Bread::x` inside the list).
 
 ### Option B — markdown file
 
@@ -94,18 +80,12 @@ printime print notes/quick.md --preview
 printime print examples/diagram_flow.md --preview   # full page with mermaid + QR
 ```
 
-### Option C — big QR code
+### Option C — QR / URL
 
 ```bash
-printime print --qr "https://calendar.google.com"
-printime print --qr "https://..." --qr-size 10      # larger
-printime print --qr "https://..." --show-link       # URL text below QR
-```
-
-WiFi guest slip:
-
-```bash
-printime print --qr 'WIFI:T:WPA;S:MyNetwork;P:password;;'
+printime qr "https://calendar.google.com"
+printime qr "https://..." --qr-size 10 --show-link
+printime url "https://example.com/article"
 ```
 
 ## 5. Google Calendar agenda

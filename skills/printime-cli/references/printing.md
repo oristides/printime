@@ -1,37 +1,55 @@
 # Printing Workflows
 
-**This file contains:** checklist `--items` syntax, ticket PDF, image width, plain-text caveat.
-
-Command examples: [SKILL.md](../SKILL.md) §5. Flags: [commands.md](commands.md).
-
 ## Checklist
 
+**6 items** (mixed done/checked):
+
 ```bash
-printime print --template checklist --title "Market" \
-  --items "Milk|Bread::x|Eggs|Butter|Cheese|Coffee::x" --preview
+printime checklist --title Weekly --items "gym|groceries::done|call mom|pay rent::checked|dentist|laundry"
 ```
 
-| Token | Printed |
-| ----- | ------- |
-| `Milk` | `[ ] Milk` |
-| `Bread::x` | `[X] Bread` |
-| `Deploy: staging` | `[ ] Deploy: staging` |
+With intro text above the list:
 
-Separator: `|`. Checked: `::x`, `::checked`, `::done`. Optional `--content` for prose above the list.
+```bash
+printime checklist --title Compras --body "Rua Example 123" --caption "Entrega sábado" \
+    --items "arroz|feijão|pão::done"
+```
+
+Separator: `|`. Checked: `::done` or `::checked`. Short item labels only — put the marker on the label, not a long phrase.
+
+## Other intents
+
+```bash
+printime note --body "Call dentist"              # title → Note
+printime task --body "comer arroz hoy"           # title → Task
+printime message --title Alert --body "Printer ready"
+printime url "https://example.com/article"
+printime qr "https://example.com"
+```
+
+`--title` is optional; omit it to use the template name on the slip.
+
+Default = preview. Add `--print` for paper.
 
 ## Ticket PDF
 
-Both forms are equivalent after ticket extras are installed (see [install.md](install.md)):
-
 ```bash
-printime print ~/Downloads/ticket.pdf --preview
-printime print --ticket ~/Downloads/ticket.pdf --preview
+printime ticket ~/Downloads/ticket.pdf
 ```
 
 ## Images
 
-`--image` scales to printer width. Target **576 px** wide for 80mm / 203 dpi.
+```bash
+printime image photo.png
+```
 
-## Plain Text vs Template
+Target **576 px** wide for 80mm paper.
 
-`--text` alone has no title bar or datetime — last resort. Prefer `--template note` or `--items` for checklists.
+## Markdown (legacy `print`)
+
+Files and inline markdown only:
+
+```bash
+printime print notes.md
+printime print --markdown --text "# Title\n\n- item"
+```

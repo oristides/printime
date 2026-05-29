@@ -912,8 +912,27 @@ def _ensure_checklist_template(args) -> None:
         args.template = 'checklist'
 
 
+def _normalize_template_fields(context: dict, template: str | None, args) -> dict:
+    """Map generic CLI fields to template-specific names."""
+    if template not in ('task', 'jira'):
+        return context
+    ctx = dict(context)
+    if ctx.get('content') and not ctx.get('description'):
+        ctx['description'] = ctx['content']
+    if ctx.get('content_lines') and not ctx.get('description_lines'):
+        ctx['description_lines'] = ctx.pop('content_lines')
+    if getattr(args, 'due', None) and 'due_date' not in ctx:
+        ctx['due_date'] = args.due
+    if getattr(args, 'done', False):
+        ctx['completed'] = True
+    return ctx
+
+
 def _finalize_template_context(context: dict, args, config: dict) -> dict:
     """Merge CLI template flags into context before render."""
+    from printime.intents import apply_body_fields
+
+    apply_body_fields(args)
     _ensure_checklist_template(args)
     template = args.template or context.get('template')
     from printime.services.checklist import enrich_checklist_context
@@ -927,13 +946,16 @@ def _finalize_template_context(context: dict, args, config: dict) -> dict:
         cli_items_string=getattr(args, 'items', None),
         width=width,
     )
-    return enrich_context_fields(
+    context = enrich_context_fields(
         context,
         width,
         markdown=True,
         link_qr=getattr(args, 'link_qr', False),
         link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
     )
+    context = _normalize_template_fields(context, template, args)
+    from printime.template_defaults import ensure_template_title
+    return ensure_template_title(context, template)
 
 
 def _print_template(
@@ -958,7 +980,8 @@ def _print_template(
             rendered = render_template_preview(template_name, ctx)
             print(rendered)
             if not yes:
-                print('Preview only. Add --yes to print.')
+                from printime.intents import PREVIEW_HINT
+                print(PREVIEW_HINT)
                 return
         print_segments(
             printer, config, template_name, ctx, cut=not no_cut,
@@ -978,7 +1001,8 @@ def _print_template(
         )
         print(rendered)
         if not yes:
-            print('Preview only. Add --yes to print.')
+            from printime.intents import PREVIEW_HINT
+            print(PREVIEW_HINT)
             return
 
     print_ctx = dict(render_ctx)
@@ -994,6 +1018,15 @@ def _print_template(
 
 
 def cmd_print(args, config, printer):
+    from printime.intents import _apply_eval_safety_mode
+    from printime.text_encoding import decode_cli_escapes
+
+    _apply_eval_safety_mode(args)
+    if getattr(args, 'text', None):
+        args.text = decode_cli_escapes(args.text)
+    if getattr(args, 'content', None):
+        args.content = decode_cli_escapes(args.content)
+
     if args.test:
         if args.test == 'qr':
             print_qr_test(printer, config)
@@ -1136,6 +1169,10 @@ def cmd_print(args, config, printer):
                 context['priority'] = args.priority
             if getattr(args, 'tags', None):
                 context['tags'] = [t.strip() for t in args.tags.split(',')]
+            if getattr(args, 'due', None):
+                context['due_date'] = args.due
+            if getattr(args, 'done', False):
+                context['completed'] = True
 
         context = _finalize_template_context(context, args, config)
         if context.get('segments') and not args.template:
@@ -1303,8 +1340,7 @@ def _print_template_entry(name: str, data: dict, *, verbose: bool = False) -> No
         print('    printime agenda --preview')
     elif name == 'checklist':
         print('  Example:')
-        print('    printime print --template checklist --title "Market" \\')
-        print('      --items "Milk|Bread::x|Eggs|Butter" --preview')
+        print('    printime checklist --title "Tasks" --items "Votar|Milk::done"')
     else:
         print('  Example:')
         print(f'    printime print --template {name} --title "..." --content "..." --preview')
@@ -1459,9 +1495,10 @@ def cmd_serve(args, config):
     server.serve_forever()
 
 
-def main():
+def build_parser():
     from printime.cli_epilog import MAIN_EPILOG, PRINT_EPILOG, TEMPLATE_CHOICES_HELP
     from printime.cli_help import HelpfulArgumentParser, PARSER_REGISTRY
+    from printime.intents import register_intent_parsers
     from printime.services.ascii_art import supported_font_names
 
     parser = HelpfulArgumentParser(
@@ -1474,9 +1511,11 @@ def main():
     parser.add_argument('--version', '-v', action='version', version='%(prog)s 0.1.0')
     subparsers = parser.add_subparsers(dest='command', help='Commands', parser_class=HelpfulArgumentParser)
 
+    register_intent_parsers(subparsers, PARSER_REGISTRY)
+
     print_parser = subparsers.add_parser(
         'print',
-        help='Print text, QR, templates, markdown, URLs, tickets',
+        help='Advanced / legacy print (prefer intent commands)',
         epilog=PRINT_EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1492,11 +1531,12 @@ def main():
         help=f'Template name ({TEMPLATE_CHOICES_HELP}; printime list <name> for fields)',
     )
     print_parser.add_argument('--title', help='Title for template')
-    print_parser.add_argument('--content', help='Content for template')
+    print_parser.add_argument('--body', help='Main text for template')
+    print_parser.add_argument('--content', help=argparse.SUPPRESS)
     print_parser.add_argument(
         '--items',
         metavar='LIST',
-        help='Checklist items, pipe-separated: Milk|Bread::x|Eggs (checked: ::x, ::checked)',
+        help='Checklist items, pipe-separated: Milk|Bread::done|Eggs (checked: ::done, ::checked)',
     )
     print_parser.add_argument(
         '--item',
@@ -1567,7 +1607,7 @@ def main():
     preview_parser.add_argument(
         '--items',
         metavar='LIST',
-        help='Checklist items, pipe-separated: Milk|Bread::x|Eggs',
+        help='Checklist items, pipe-separated: Milk|Bread::done|Eggs',
     )
     preview_parser.add_argument(
         '--item',
@@ -1642,6 +1682,30 @@ def main():
     )
     agenda_parser.add_argument('--ics-url', help='Override GOOGLE_CALENDAR_ICS_URL from .env')
 
+    eval_parser = subparsers.add_parser('eval', help='Validate/score agent command interpretations')
+    eval_parser.add_argument('--file', default=None, help='Path to evals.json')
+    eval_parser.add_argument('--validate', help='Validate one command string')
+    eval_parser.add_argument('--case', help='Eval case id (with --score or --simulate)')
+    eval_parser.add_argument(
+        '--score',
+        help='Newline-separated command attempts to score against --case',
+    )
+    eval_parser.add_argument(
+        '--simulate',
+        action='store_true',
+        help='Run agent simulation (SKILL.md only + natural-language prompts)',
+    )
+    eval_parser.add_argument('--dry-run', action='store_true', help='With --simulate: skip agent, score expected command only')
+    eval_parser.add_argument('-v', '--verbose', action='store_true', help='With --simulate: show setup and per-case progress on stderr')
+    eval_parser.add_argument('--max-attempts', type=int, default=None, help='Max tries per case (default: from evals.json, usually 4)')
+    eval_parser.add_argument('--json', action='store_true', help='With --simulate: also print JSON results')
+    eval_parser.add_argument('--skill-dir', default=None, help='Skill folder for --simulate (default: skills/printime-cli)')
+
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
 
     if args.command is None:
@@ -1649,6 +1713,16 @@ def main():
         return
 
     config = load_config()
+
+    from printime.intents import cmd_intent, is_intent_command
+
+    if is_intent_command(args.command):
+        printer = create_printer(config)
+        try:
+            cmd_intent(args, config, printer)
+        finally:
+            finish_job(printer)
+        return
 
     if args.command == 'print':
         resolve_print_input(args)
@@ -1727,6 +1801,16 @@ def main():
         else:
             print("Use --text or --template with --file")
 
+    elif args.command == 'eval':
+        if not args.file:
+            pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            args.file = os.path.join(pkg_root, 'skills', 'printime-cli', 'evals.json')
+        if getattr(args, 'simulate', False):
+            from printime.agent_eval import cmd_eval_simulate
+            return cmd_eval_simulate(args)
+        from printime.eval_runner import cmd_eval
+        return cmd_eval(args)
+
     elif args.command == 'transform':
         from printime.services.transform import transform_file, markdown_to_context
 
@@ -1792,7 +1876,8 @@ def main():
 
     elif args.command == 'anytype':
         if args.anytype_cmd is None:
-            anytype_parser.print_help()
+            from printime.cli_help import PARSER_REGISTRY
+            PARSER_REGISTRY['anytype'].print_help()
             print(
                 '\nExamples:\n'
                 '  printime anytype print "Page title" --preview\n'

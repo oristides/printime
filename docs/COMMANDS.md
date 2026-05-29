@@ -128,19 +128,21 @@ Markdown can embed mermaid and QR inline — see [TEMPLATES.md](TEMPLATES.md).
 ### Checklist
 
 ```bash
-printime print --template checklist --title "Market" \
-  --items "Milk|Bread::x|Eggs|Butter|Cheese|Coffee::x" --preview
+printime checklist --title "Market" --items "Milk|Bread::done|Eggs"
 ```
 
-| Token | Printed |
-| ----- | ------- |
-| `Milk` | `[ ] Milk` |
-| `Bread::x` | `[X] Bread` |
-| `Deploy: staging` | `[ ] Deploy: staging` |
+Checked: `Bread::done` or `Bread::checked`. Default = preview; add `--print` for paper.
 
-Separator: `|`. Checked suffix: `::x`, `::checked`, or `::done`.
+### Intent commands
 
-### Template + context file
+```bash
+printime task --body "comer arroz hoy"           # title → Task
+printime note --body "Call dentist"              # title → Note
+printime url "https://example.com/article"
+printime qr "https://example.com"
+```
+
+### Legacy print + files
 
 ```bash
 printime print --template note --file examples/note.md --preview
@@ -175,7 +177,7 @@ printime print --test all
 | `--template`, `-t` | Template name |
 | `--title` | Title (with `--template`, no `--file`) |
 | `--content` | Body (with `--template`, no `--file`) |
-| `--items` | Checklist list: `Milk\|Bread::x\|Eggs` (pipe-separated; checked: `::x`) |
+| `--items` | Checklist list: `Milk\|Bread::done\|Eggs` (pipe-separated; checked: `::done` or `::checked`) |
 | `--priority` | `HIGH`, `MEDIUM`, `LOW` |
 | `--tags` | Comma-separated tags |
 | `--file`, `-f` | Context file |

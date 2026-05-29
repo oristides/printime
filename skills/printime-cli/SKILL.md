@@ -1,33 +1,15 @@
 ---
 name: printime-cli
 description: >-
-  Use when operating the Printime CLI, ESC/POS thermal printers, notes, task, checklist and other
-  printing options like markdown notes, QR codes, ticket PDFs,
-  Anytype/Notion/Markdown pages,  email summaries templates, or automation via printime serve.
+  Use when operating the Printime CLI, ESC/POS thermal printers, notes, checklists,
+  tasks, messages, QR codes, URLs, ticket PDFs, or integrations (Anytype, Keep, Calendar).
 metadata:
   repository: ~/Documents/repos/random_projects/printime
   package: printime
   primaryConfig: config/printer.yaml
   primaryEnv: .env
-inputs:
-  - name: PRINTER_DEVICE
-    required: true
-    description: Direct USB device such as /dev/usb/lp0 or /dev/usb/lp5.
-  - name: PRINTER_BACKEND
-    required: false
-    description: Printer backend; usb is the recommended default.
-  - name: ANYTYPE_API_KEY
-    required: false
-    description: Anytype Desktop API key for printing pages by title.
-  - name: GOOGLE_CALENDAR_ICS_URL
-    required: false
-    description: Private Google Calendar ICS URL for agenda printing.
-  - name: GOOGLE_KEEP_MASTER_TOKEN
-    required: false
-    description: Google Keep gkeepapi master token; treat as a password.
 references:
   - references/install.md
-  - references/agent-protocol.md
   - references/commands.md
   - references/printing.md
   - references/templates.md
@@ -37,174 +19,211 @@ references:
 
 # Printime CLI
 
-Printime is a CLI-first thermal printer tool for **ESC/POS receipt printers** (80mm, 48 columns).
+Thermal printer CLI for **80mm / 48-column** receipt printers.
 
 ---
 
-## 1 · Before You Print Anything
-
-Run these checks once per session (or after any printer failure):
+## 1 · Setup (once per session)
 
 ```bash
-# Is printime installed and healthy?
 (command -v printime >/dev/null && printime --version) || \
   pipx install -e ~/Documents/repos/random_projects/printime[all] --force
 printime doctor
 ```
 
-`CUPS status: idle` is normal (means ready). If `doctor` reports a device or
-permission error, fix it before continuing → [references/troubleshooting.md](references/troubleshooting.md).
-
 ---
 
-## 2 · The Preview / Print Contract
+## 2 · Output mode
 
-**This is the most important rule.** Understand it before issuing any command.
-
-| Command form | What happens |
+| You run | Result |
 |---|---|
-| `printime print FILE --preview` | Terminal preview only. **No paper.** |
-| `printime print FILE --preview --yes` | Preview, then print. |
-| `printime print FILE --yes` | Print immediately, no preview. |
-| `printime print FILE` | Print immediately, no preview. |
+| `printime <intent> …` | **Terminal preview** (default) |
+| `printime <intent> … --print` | **Paper** |
 
-**Default for agents: always add `--preview` first. Read the output. Add `--yes` only after:**
-- The user explicitly approved the preview, OR
-- The user asked for immediate physical output, OR
-- The job is trusted cron / automation.
+No `--preview` flag on intent commands. Preview is automatic.
 
-`[CUT]` in preview output is a marker — it is not printed as text.
+**Only add `--print` when the user asks for paper now** (e.g. “on paper”, “imprimir no papel”, “print now”).
 
 ---
 
-## 3 · Choose the Right Command (Decision Tree)
+## 3 · Intent commands (pick one)
 
-```
-What does the user want to print?
-│
-├─ Personal note / quick memo          →  --template note
-├─ Checkbox / todo list                →  --template checklist --title "…" --items "A|B::x|C"
-├─ Short alert / message slip          →  --template message
-├─ Email summary                       →  --template email  (or examples/email.md)
-├─ Markdown file (.md)                 →  printime print FILE.md
-├─ Enriched markdown inline            →  --markdown --text $'# ...'
-├─ Google Calendar agenda              →  printime agenda --today | --days N | --next-week
-├─ Anytype page                        →  printime anytype print "Title"
-├─ Google Keep note                    →  printime keep print "URL or ID"
-├─ Web article / URL                   →  --url 'https://...'
-├─ Ticket PDF                          →  printime print ticket.pdf
-├─ ASCII art banner                    →  --ascii "text" --ascii-font slant --center
-├─ QR code (standalone)                →  --qr "https://..." --qr-size 10
-├─ Image                               →  --image photo.png
-├─ Mermaid diagram                     →  --mermaid flow.mmd
-├─ HTTP automation                     →  printime serve --port 8080
-└─ Raw text (no template, last resort) →  --text "..."
-```
-
----
-
-## 4 · Template Auto-Detection
-
-When printing a `.md` file without `--template`, Printime picks the template automatically:
-
-| Content in the file | Chosen template |
+| User wants | Command |
 |---|---|
-| Headings + mermaid or inline QR blocks | `document` |
-| Mermaid only | `diagram` |
-| Checkboxes only | `checklist` |
-| Plain prose | `note` |
-| Positional `.pdf` file | `ticket` |
-
-To force a specific template: `--template <name>` or set `template:` in YAML frontmatter.
-
-Run `printime list` to list all templates. Run `printime list <name>` to see its fields.
+| Todo / checkbox list | `printime checklist --items "A\|B::done"` |
+| Single task card | `printime task --body "…"` |
+| Quick memo | `printime note --body "…"` |
+| Short alert | `printime message --body "…"` |
+| Email summary | `printime email --body "…"` |
+| Web article | `printime url "https://…"` |
+| QR code | `printime qr "https://…"` |
+| Ticket PDF | `printime ticket path/to.pdf` |
+| Image | `printime image photo.png` |
+| ASCII banner | `printime ascii "hello"` |
+| Markdown **file** | `printime print notes.md` |
+| Inline markdown | `printime print --markdown --text "…"` (use `\n` for line breaks) |
+| Anytype page | `printime anytype print "Title"` |
+| Keep note | `printime keep print "URL or ID"` |
+| Calendar | `printime agenda --today` |
 
 ---
 
-## 5 · Quick Command Reference
+## 4 · `--title` (optional)
+
+Omit `--title` → slip header is the **template name**: `Task`, `Note`, `Checklist`, `Message`, `Email`, …
+
+Add `--title` only when the user names the list or slip:
+
+| User implies | `--title` |
+|---|---|
+| lista de compras | `Compras` |
+| weekly todos | `Weekly` |
+| checklist del viaje | `Viaje` |
+| print tasks: | `Tasks` |
+| resumo do email | `Resumo` |
+| quick memo / call dentist | omit (default `Note`) or `Memo` if user says “memo” |
+| alert | `Alert` |
+
+---
+
+## 5 · Required vs optional (by intent)
+
+| Intent | Required | Optional |
+|---|---|---|
+| `note` | `--body` (or `--file`) | `--title` (default Note), `--caption`, `--print` |
+| `task` | `--body` (or `--file`) | `--title` (default Task), `--due`, `--done`, `--caption`, `--print` |
+| `message` | `--body` (or `--file`) | `--title` (default Message), `--caption`, `--print` |
+| `email` | `--body` (or `--file`) | `--title` (default Email), `--caption`, `--print` |
+| `checklist` | `--items` (or `--file` with items) | `--title` (default Checklist), `--body` (intro text above list), `--caption`, `--print` |
+| `url` | `TARGET` URL | `--print`, `--max-chars`, `--link-qr` |
+| `qr` | `TARGET` payload | `--print`, `--qr-size`, `--show-link` |
+| `ticket` | `TARGET` PDF path | `--print` |
+| `image` | `TARGET` image path | `--title`, `--caption`, `--print` |
+| `ascii` | `TARGET` text | `--ascii-font`, `--center`, `--print` |
+
+Also written in:
+- **`printime <intent> --help`** — flag lines (`optional; default: …`) + **Examples** epilog at bottom
+- **`printime --help`** — `--title is optional` + disambiguation block
+
+### Flag notes
+
+| Flag | Use |
+|---|---|
+| `--title` | Optional slip header (default: template name) |
+| `--body` | Main text; on **checklist** optional intro above the list (address, notes, …) |
+| `--caption` | Optional subtitle under the title |
+| `--items` | **Checklist only** — pipe-separated: `Milk\|Bread::done` |
+| `--print` | Send to printer (default is preview) |
+| `--no-cut` | Skip paper cut |
+
+Checklist **checked** item: append `::done` or `::checked` to the **short item label** (e.g. `Bread::done`).
+
+Use the marker word the user said:
+
+| User says | Marker |
+|---|---|
+| done / já comprei / listo | `::done` |
+| checked | `::checked` |
+
+---
+
+## 6 · Disambiguation
+
+| User says | Run | Not |
+|---|---|---|
+| "print task …" / "tarea …" (one thing) | `printime task --body "…"` | checklist |
+| "print tasks:" / "lista de compras:" (list) | `printime checklist --items "…"` | task |
+| "tarea para mañana: X" | `printime task --body "X"` | `--title` (drop “para mañana” prefix) |
+| "print article / link / matéria" + URL | `printime url "https://…"` | qr |
+| "QR" / "escanear" / "scannable" | `printime qr "…"` | url |
+| "resumo do email: …" | `printime email --title Resumo --body "…"` | message |
+
+---
+
+## 7 · Examples
+
+**Checklist — 6 items** (mixed done/checked, contextual `--title`):
 
 ```bash
-# Notes and messages
-printime print --template note --title "Today" --content "Ship docs" --preview
-printime print --template checklist --title "Market" --items "Milk|Bread::x|Eggs" --preview
-printime print --template message --title "Alert" --content "Printer ready" --preview
+printime checklist --title Weekly --items "gym|groceries::done|call mom|pay rent::checked|dentist|laundry"
+```
 
-# Email
-printime print examples/email.md --preview
-printime print --template email --file examples/email.json --preview
-printime list email                          # show all email fields
+| Item | Marker | Why |
+|---|---|---|
+| `gym`, `call mom`, `dentist`, `laundry` | (none) | still todo |
+| `groceries::done` | `::done` | user said "done" |
+| `pay rent::checked` | `::checked` | user said "checked" |
 
-# Markdown
-printime print notes.md --preview
-printime print --markdown --text $'# Title\n\n- [ ] Task' --preview
+Grocery list — intro text + items:
 
-# Calendar / integrations
-printime agenda --today --preview
-printime agenda --days 7 --preview
-printime agenda --next-week --preview
-printime anytype print "Login Flow" --preview
-printime keep print "https://keep.google.com/#NOTE/..." --preview
+```bash
+printime checklist --title Compras --body "Rua Example 123" --caption "Entrega sábado" \
+    --items "arroz|feijão|pão::done"
+```
 
-# Media
-printime print ticket.pdf --preview
-printime print --url "https://example.com/article" --preview
-printime print --qr "https://example.com" --qr-size 10 --show-link --preview
-printime print --ascii "hello" --ascii-font slant --center --preview
+Grocery list — items only (6 items, one bought):
 
-# Info / diagnostics
-printime list
-printime ascii-fonts
-printime doctor --test-print
+```bash
+printime checklist --title Compras --items "arroz|feijão|café|leite|pão::done|açúcar"
+```
 
-# Automation
-printime serve --port 8080
+Other intents:
+
+```bash
+printime checklist --title Tasks --items Votar
+printime task --body "comer arroz hoy"
+printime note --body "Call dentist"
+printime message --title Alert --body "Printer ready"
+printime email --title Resumo --body "Reunião cancelada — remarcar sexta 15h"
+printime url "https://example.com/article"
+printime qr "https://example.com"
+printime print --markdown --text "# Sprint\n\n- fix bug\n- ship"
+printime print notes.md
+```
+
+Print after preview:
+
+```bash
+printime checklist --title Weekly --items "gym|groceries::done|call mom|pay rent::checked|dentist|laundry" --print
 ```
 
 ---
 
-## 6 · Guard-Rails (Common Mistakes to Avoid)
+## 8 · Natural language → command
 
-| ❌ Wrong | ✅ Right |
+| User says | Run |
 |---|---|
-| `--text` for notes / checklists / messages | Use `--template note`, `--template checklist --items "…"`, or `--template message` |
-| Ctrl+P to POS8370 for articles, Anytype, PDFs | Use `printime print` or `printime serve` |
-| `--yes` without reading preview | Run `--preview` first; only add `--yes` after approval |
-| `pip install` in system Python | Use `pipx install -e ...` or `pipx inject printime ...` |
-| `printime print --url <keep-url>` | Keep URLs use fragments; use `printime keep print` instead |
-| Long URL → huge dense QR code | Shorten URLs above ~300 chars before generating QR |
-| Mermaid missing on paper | `npm install -g @mermaid-js/mermaid-cli` |
-| Garbled Portuguese accents on paper | Set `encoding: cp860` in `config/printer.yaml` |
+| "print task comer arroz hoy" | `printime task --body "comer arroz hoy"` |
+| "print tasks: Votar" | `printime checklist --title Tasks --items Votar` |
+| "print my weekly todos: gym, groceries done, call mom, pay rent checked, dentist, laundry" | `printime checklist --title Weekly --items "gym\|groceries::done\|call mom\|pay rent::checked\|dentist\|laundry"` |
+| "imprime el ultimo mensaje…" | `printime message --title Mensaje --body "<text from chat>"` |
+| "imprime este link https://…" | `printime url "https://…"` |
+| "imprima o arquivo foo.md" | `printime print foo.md` |
 
 ---
 
-## 7 · Key Notes Per Content Type
+## 9 · Guard-rails
 
-**`checklist`** — `--items "A|B::x|C"` (pipe-separated). Checked: append `::x` or `::checked`. Colons in labels OK (`Deploy: staging`). Optional `--content` for prose. Auto datetime under title.
+| Wrong | Right |
+|---|---|
+| `printime print --template checklist …` | `printime checklist …` |
+| `--content` on intents | `--body` |
+| `--preview` on intents | omit (preview is default) |
+| `--print` without user asking for paper | omit |
+| `printime print --url …` | `printime url …` |
+| Long phrase as item label + marker | short label + `::done` (e.g. `cargador::done`) |
 
-**`note`, `message`, `agenda`** — auto `YYYY-MM-DD HH:MM` under title. Override with `date:` only when needed.
-
-**`email`** — fields: `subject`, `sender` (YAML `from:` maps here), `to`, `cc`, `reply_to`, `date`, `body`, `labels`, `message_id`. `to` and `cc` accept a string or list.
-
-**Tables in markdown** — target 3–4 columns for 48-column paper. 5 columns is the practical max. More than 5 columns renders but becomes unreadable.
-
-**ASCII art fonts** — public choices are limited to: `pagga`, `avatar`, `bulbhead`, `banner`, `slant`. Others are internal fallbacks only. Run `printime ascii-fonts` to confirm.
-
-**Article URLs** — works best on readable article pages. Paywalls and heavy JS may fail. Use `--max-chars 3000` to limit length, or `--max-chars 0` for no limit.
-
-**`printime serve`** — no auth. Use only on localhost, LAN, or Tailscale.
+Legacy `printime print` is for **markdown files** and **inline markdown** only.
 
 ---
 
-## 8 · When to Load References
+## 10 · References
 
-Load one reference only when you need it. Each file opens with what it contains — confirm you picked the right one.
-
-| Situation | File | Contains |
+| Need | File | Notes |
 |---|---|---|
-| Install, update, extras, printer config | [install.md](references/install.md) | pipx install, **extra → feature** table, `printer.yaml` / `.env` fields |
-| Programmatic preview in Python | [agent-protocol.md](references/agent-protocol.md) | `capture_cli_preview`, `render_and_summarize`, preview inspection checklist |
-| Exact flag name or HTTP JSON body | [commands.md](references/commands.md) | Full flag tables per subcommand, `serve` payloads (no examples) |
-| Non-obvious print details | [printing.md](references/printing.md) | Checklist `--items` syntax, ticket `.pdf` vs `--ticket`, image width, plain `--text` caveat |
-| Template fields, tables, fences | [templates.md](references/templates.md) | Per-template fields, frontmatter, QR/mermaid fences, **table column limits** |
-| Anytype / Calendar / Keep / HTTP | [integrations.md](references/integrations.md) | Env vars, Desktop vs Bot API, integration commands |
-| Errors, encoding, USB, CUPS | [troubleshooting.md](references/troubleshooting.md) | Problem/fix table, **cp860 for Portuguese**, USB + secrets note |
+| Install / config | [install.md](references/install.md) | pipx, printer.yaml, extras |
+| Flags / HTTP API | [commands.md](references/commands.md) | intent-first; legacy `print` at bottom |
+| Checklist / workflows | [printing.md](references/printing.md) | `--items`, 6-item examples |
+| Template mapping | [templates.md](references/templates.md) | intent → template (internal) |
+| Integrations | [integrations.md](references/integrations.md) | anytype, keep, agenda (still use `--preview` there) |
+| Troubleshooting | [troubleshooting.md](references/troubleshooting.md) | doctor, encoding, USB |

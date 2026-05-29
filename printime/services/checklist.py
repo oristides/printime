@@ -13,7 +13,7 @@ def parse_checklist_item(raw: str) -> Dict[str, Any]:
     """Parse one ``--item`` value.
 
     Unchecked: ``Milk``
-    Checked: ``Bread::x``, ``Bread::checked``, or ``Bread::done``
+    Checked: ``Bread::done``, ``Bread::checked`` (legacy: ``Bread::x``)
 
     Uses ``::`` so item text may contain single colons (``Deploy: staging``).
     Only a recognized suffix after the final ``::`` marks an item checked.

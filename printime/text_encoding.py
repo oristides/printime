@@ -37,6 +37,36 @@ def normalize_unicode_text(text: str) -> str:
     return text
 
 
+def decode_cli_escapes(text: str) -> str:
+    """Turn shell-style escape sequences in CLI string args into real characters."""
+    if not text or '\\' not in text:
+        return text
+    out: list[str] = []
+    i = 0
+    while i < len(text):
+        if text[i] == '\\' and i + 1 < len(text):
+            nxt = text[i + 1]
+            if nxt == 'n':
+                out.append('\n')
+                i += 2
+                continue
+            if nxt == 'r':
+                out.append('\r')
+                i += 2
+                continue
+            if nxt == 't':
+                out.append('\t')
+                i += 2
+                continue
+            if nxt == '\\':
+                out.append('\\')
+                i += 2
+                continue
+        out.append(text[i])
+        i += 1
+    return ''.join(out)
+
+
 def normalize_for_preview(text: str) -> str:
     """Preview text — preserve Portuguese/European characters (ã, ç, é)."""
     return normalize_unicode_text(text)

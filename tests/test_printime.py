@@ -197,6 +197,21 @@ class TestPreviewRendering:
         assert '[ ]' in result
         assert '[CUT]' in result
 
+    def test_render_task_preview_with_content(self):
+        from printime.cli import _finalize_template_context
+        from argparse import Namespace
+
+        config = {'printer': {'width': 48}}
+        args = Namespace(template='task', item=None, items=None, link_qr=False)
+        context = _finalize_template_context(
+            {'title': 'Tarefas de Hoje', 'content': 'Votar hoy'},
+            args,
+            config,
+        )
+        result = render_template_preview('task', context)
+        assert 'TAREFAS DE HOJE' in result
+        assert 'Votar hoy' in result
+
     def test_print_template_preview_only_does_not_print(self, monkeypatch):
         from unittest.mock import MagicMock
         import printime.cli as cli
@@ -577,15 +592,68 @@ class TestCLIHelp:
         err = capsys.readouterr().err
         assert 'anytype print' in err
 
-    def test_main_help_lists_templates(self, capsys):
+    def test_main_help_lists_intents(self, capsys):
         from printime.cli import main
         with pytest.raises(SystemExit):
             sys.argv = ['printime', '--help']
             main()
         out = capsys.readouterr().out
-        assert 'document' in out
-        assert 'printime print' in out
-        assert 'ticket' in out
+        assert 'checklist' in out
+        assert 'printime checklist' in out or 'checklist' in out
+        assert 'task' in out
+        assert '--print' in out
+
+
+class TestIntentHelpEpilogs:
+    def test_main_help_disambiguates_task_vs_checklist(self, capsys):
+        from printime.cli import main
+
+        with pytest.raises(SystemExit):
+            sys.argv = ['printime', '--help']
+            main()
+        out = capsys.readouterr().out
+        assert 'one thing to do' in out
+        assert 'list / todos' in out
+        assert 'web article' in out
+        assert 'scannable QR' in out
+
+    def test_checklist_help_shows_shape_and_body(self, capsys):
+        from printime.cli import main
+
+        with pytest.raises(SystemExit):
+            sys.argv = ['printime', 'checklist', '--help']
+            main()
+        out = capsys.readouterr().out
+        assert 'printime checklist --items' in out
+        assert '--body' in out
+        assert 'intro text above the list' in out
+        assert 'use task --body instead' in out
+
+    def test_task_help_points_to_checklist_for_lists(self, capsys):
+        from printime.cli import main
+
+        with pytest.raises(SystemExit):
+            sys.argv = ['printime', 'task', '--help']
+            main()
+        out = capsys.readouterr().out
+        assert 'printime task --body' in out
+        assert 'checklist --items' in out
+
+    def test_url_qr_help_disambiguates(self, capsys):
+        from printime.cli import main
+        import sys
+
+        with pytest.raises(SystemExit):
+            sys.argv = ['printime', 'url', '--help']
+            main()
+        url_out = capsys.readouterr().out
+        assert 'Not a QR code' in url_out
+
+        with pytest.raises(SystemExit):
+            sys.argv = ['printime', 'qr', '--help']
+            main()
+        qr_out = capsys.readouterr().out
+        assert 'Not a full article' in qr_out
 
 
 class TestUrlFetch:

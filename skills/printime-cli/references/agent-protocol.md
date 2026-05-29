@@ -9,7 +9,7 @@ Preview/print rules and when to use `--yes` are in [SKILL.md](../SKILL.md) §2.
 ```python
 from printime.preview_capture import capture_cli_preview, read_preview
 
-cap = capture_cli_preview(["print", "ticket.pdf", "--preview"])
+cap = capture_cli_preview(["ticket", "ticket.pdf"])  # preview by default
 print(read_preview(cap["preview"]))
 ```
 
