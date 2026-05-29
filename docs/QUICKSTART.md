@@ -67,6 +67,15 @@ printime print --template note \
   --content "Call dentist tomorrow at 3pm"
 ```
 
+### Checklist (no file)
+
+```bash
+printime print --template checklist --title "Shopping" \
+  --items "Milk|Bread::x|Eggs|Butter" --preview
+```
+
+Checked items: append `::x` or `::checked` (e.g. `Bread::x` inside the list).
+
 ### Option B — markdown file
 
 ```markdown

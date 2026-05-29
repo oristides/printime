@@ -154,10 +154,15 @@ def markdown_to_context(
             context['body'] = lines_to_plain_preview(context['body_lines'], width)
 
     if template in ('checklist', 'document') and context.get('items'):
-        if not any(seg.get('type') == 'styled' for seg in segments) and body.strip():
-            from printime.styled import markdown_to_print_lines, lines_to_plain_preview
-            context['content_lines'] = markdown_to_print_lines(body, width)
-            context['content'] = lines_to_plain_preview(context['content_lines'], width)
+        has_styled = any(seg.get('type') == 'styled' for seg in segments)
+        if not has_styled:
+            prose_body = body
+            if template == 'checklist':
+                _, prose_body = _parse_checkboxes(body)
+            if prose_body.strip():
+                from printime.styled import markdown_to_print_lines, lines_to_plain_preview
+                context['content_lines'] = markdown_to_print_lines(prose_body, width)
+                context['content'] = lines_to_plain_preview(context['content_lines'], width)
     elif template == 'diagram':
         if body.strip() and 'caption' not in context:
             from printime.styled import markdown_to_print_lines, lines_to_plain_preview

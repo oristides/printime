@@ -1,5 +1,5 @@
 name: checklist
-description: Task checklist with automatic date and checkboxes
+description: Task checklist — --items on CLI
 fields:
   - title
   - caption

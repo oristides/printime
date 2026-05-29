@@ -36,7 +36,14 @@ Template auto-detection: [SKILL.md](../SKILL.md) §4. ASCII font list: SKILL.md 
 
 ### `checklist`
 
-`title`, `caption`, `date`, `content`, `items` — each item: `text`, `checked`
+`title`, `caption`, `date`, `content`, `items`
+
+```bash
+printime print --template checklist --title "Market" \
+  --items "Milk|Bread::x|Eggs|Butter|Coffee::x" --preview
+```
+
+Separator: `|`. Checked: `::x`, `::checked`, `::done`.
 
 ### `message`
 

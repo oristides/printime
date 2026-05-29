@@ -83,7 +83,7 @@ permission error, fix it before continuing → [references/troubleshooting.md](r
 What does the user want to print?
 │
 ├─ Personal note / quick memo          →  --template note
-├─ Checkbox / todo list                →  --template checklist --file list.yaml
+├─ Checkbox / todo list                →  --template checklist --title "…" --items "A|B::x|C"
 ├─ Short alert / message slip          →  --template message
 ├─ Email summary                       →  --template email  (or examples/email.md)
 ├─ Markdown file (.md)                 →  printime print FILE.md
@@ -126,7 +126,7 @@ Run `printime list` to list all templates. Run `printime list <name>` to see its
 ```bash
 # Notes and messages
 printime print --template note --title "Today" --content "Ship docs" --preview
-printime print --template checklist --file shopping.yaml --preview
+printime print --template checklist --title "Market" --items "Milk|Bread::x|Eggs" --preview
 printime print --template message --title "Alert" --content "Printer ready" --preview
 
 # Email
@@ -166,7 +166,7 @@ printime serve --port 8080
 
 | ❌ Wrong | ✅ Right |
 |---|---|
-| `--text` for notes / checklists / messages | Use `--template note`, `checklist`, or `message` |
+| `--text` for notes / checklists / messages | Use `--template note`, `--template checklist --items "…"`, or `--template message` |
 | Ctrl+P to POS8370 for articles, Anytype, PDFs | Use `printime print` or `printime serve` |
 | `--yes` without reading preview | Run `--preview` first; only add `--yes` after approval |
 | `pip install` in system Python | Use `pipx install -e ...` or `pipx inject printime ...` |
@@ -179,7 +179,9 @@ printime serve --port 8080
 
 ## 7 · Key Notes Per Content Type
 
-**`note`, `checklist`, `message`, `agenda`** — automatically print `YYYY-MM-DD HH:MM` below the title. Only set `date:` in frontmatter if you need to override with a specific time.
+**`checklist`** — `--items "A|B::x|C"` (pipe-separated). Checked: append `::x` or `::checked`. Colons in labels OK (`Deploy: staging`). Optional `--content` for prose. Auto datetime under title.
+
+**`note`, `message`, `agenda`** — auto `YYYY-MM-DD HH:MM` under title. Override with `date:` only when needed.
 
 **`email`** — fields: `subject`, `sender` (YAML `from:` maps here), `to`, `cc`, `reply_to`, `date`, `body`, `labels`, `message_id`. `to` and `cc` accept a string or list.
 
@@ -202,7 +204,7 @@ Load one reference only when you need it. Each file opens with what it contains 
 | Install, update, extras, printer config | [install.md](references/install.md) | pipx install, **extra → feature** table, `printer.yaml` / `.env` fields |
 | Programmatic preview in Python | [agent-protocol.md](references/agent-protocol.md) | `capture_cli_preview`, `render_and_summarize`, preview inspection checklist |
 | Exact flag name or HTTP JSON body | [commands.md](references/commands.md) | Full flag tables per subcommand, `serve` payloads (no examples) |
-| Non-obvious print details | [printing.md](references/printing.md) | Checklist YAML shape, ticket `.pdf` vs `--ticket`, image width, plain `--text` caveat |
+| Non-obvious print details | [printing.md](references/printing.md) | Checklist `--items` syntax, ticket `.pdf` vs `--ticket`, image width, plain `--text` caveat |
 | Template fields, tables, fences | [templates.md](references/templates.md) | Per-template fields, frontmatter, QR/mermaid fences, **table column limits** |
 | Anytype / Calendar / Keep / HTTP | [integrations.md](references/integrations.md) | Env vars, Desktop vs Bot API, integration commands |
 | Errors, encoding, USB, CUPS | [troubleshooting.md](references/troubleshooting.md) | Problem/fix table, **cp860 for Portuguese**, USB + secrets note |

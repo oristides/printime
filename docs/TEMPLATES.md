@@ -251,28 +251,41 @@ printime print --template note \
 
 ## checklist
 
-Checkbox list for shopping lists, todos, etc. Includes automatic datetime under the title/caption.
+Checkbox list. Auto datetime under title.
 
-**Fields:** `title`, `caption`, `date`, `content`, `items` (each item: `text`, `checked`)
+**Fields:** `title`, `caption`, `date`, `content`, `items` (each: `text`, `checked`)
 
-**Markdown example** (`examples/checklist.md`):
+**CLI (preferred — no file):**
+
+```bash
+printime print --template checklist --title "Market" \
+  --items "Milk|Bread::x|Eggs|Butter|Coffee::x" --preview
+```
+
+| Token | Result |
+| ----- | ------ |
+| `Milk` | unchecked |
+| `Bread::x` | checked |
+| `Deploy: staging` | unchecked (colon is part of label) |
+
+Separator: `|`. Checked: `::x`, `::checked`, or `::done`.
+
+**Markdown file** (`examples/checklist.md`):
 
 ```markdown
 ---
-template: checklist
 title: Weekly Shopping List
 ---
 
 - [ ] Milk
 - [x] Bread
-- [ ] Eggs
 ```
 
 ```bash
 printime print examples/checklist.md --preview
 ```
 
-You do not need `template: checklist` if the file only contains checkbox lines — it is detected automatically.
+Checkbox-only `.md` auto-detects `checklist`. Use files only for saved lists or mixed prose + checkboxes.
 
 ---
 

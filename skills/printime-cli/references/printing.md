@@ -1,21 +1,23 @@
 # Printing Workflows
 
-**This file contains:** non-obvious details not covered by flag tables — checklist YAML shape, ticket PDF invocation, image width, plain-text vs template.
+**This file contains:** checklist `--items` syntax, ticket PDF, image width, plain-text caveat.
 
-Command examples and the decision tree are in [SKILL.md](../SKILL.md) §3 and §5. Flags: [commands.md](commands.md).
+Command examples: [SKILL.md](../SKILL.md) §5. Flags: [commands.md](commands.md).
 
-## Checklist YAML Shape
+## Checklist
 
-`--template checklist --file` expects:
-
-```yaml
-title: Shopping
-items:
-  - text: Milk
-    checked: false
-  - text: Bread
-    checked: true
+```bash
+printime print --template checklist --title "Market" \
+  --items "Milk|Bread::x|Eggs|Butter|Cheese|Coffee::x" --preview
 ```
+
+| Token | Printed |
+| ----- | ------- |
+| `Milk` | `[ ] Milk` |
+| `Bread::x` | `[X] Bread` |
+| `Deploy: staging` | `[ ] Deploy: staging` |
+
+Separator: `|`. Checked: `::x`, `::checked`, `::done`. Optional `--content` for prose above the list.
 
 ## Ticket PDF
 
@@ -26,12 +28,10 @@ printime print ~/Downloads/ticket.pdf --preview
 printime print --ticket ~/Downloads/ticket.pdf --preview
 ```
 
-Extracts QR codes and barcodes in document order, then renders the `ticket` template.
-
 ## Images
 
-`--image` scales to printer width. Target **576 px** wide for 80mm / 203 dpi; narrower sources are upscaled, wider are shrunk.
+`--image` scales to printer width. Target **576 px** wide for 80mm / 203 dpi.
 
 ## Plain Text vs Template
 
-`--text` alone has **no** title bar, automatic datetime, or template fields — last resort for raw slips. Prefer `--template note` (or a `.md` file) for anything you might print again.
+`--text` alone has no title bar or datetime — last resort. Prefer `--template note` or `--items` for checklists.

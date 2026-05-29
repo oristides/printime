@@ -125,11 +125,25 @@ printime print --mermaid flow.mmd --preview          # needs mermaid-cli
 
 Markdown can embed mermaid and QR inline — see [TEMPLATES.md](TEMPLATES.md).
 
+### Checklist
+
+```bash
+printime print --template checklist --title "Market" \
+  --items "Milk|Bread::x|Eggs|Butter|Cheese|Coffee::x" --preview
+```
+
+| Token | Printed |
+| ----- | ------- |
+| `Milk` | `[ ] Milk` |
+| `Bread::x` | `[X] Bread` |
+| `Deploy: staging` | `[ ] Deploy: staging` |
+
+Separator: `|`. Checked suffix: `::x`, `::checked`, or `::done`.
+
 ### Template + context file
 
 ```bash
 printime print --template note --file examples/note.md --preview
-printime print --template checklist --file examples/checklist.md --preview
 ```
 
 Context files: `.md`, `.json`, `.yaml`.
@@ -161,6 +175,7 @@ printime print --test all
 | `--template`, `-t` | Template name |
 | `--title` | Title (with `--template`, no `--file`) |
 | `--content` | Body (with `--template`, no `--file`) |
+| `--items` | Checklist list: `Milk\|Bread::x\|Eggs` (pipe-separated; checked: `::x`) |
 | `--priority` | `HIGH`, `MEDIUM`, `LOW` |
 | `--tags` | Comma-separated tags |
 | `--file`, `-f` | Context file |

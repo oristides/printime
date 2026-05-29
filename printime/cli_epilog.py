@@ -29,6 +29,8 @@ Templates (see: printime list, printime list <name>):
 Examples:
   printime print --template note --title "Today" \\
     --content "Ship docs" --preview
+  printime print --template checklist --title "Today" \\
+    --items "Milk|Bread::x" --preview
   printime print --template message --title "Alert" \\
     --content "Printer ready" --preview
   printime print examples/email.md --preview
@@ -59,6 +61,8 @@ PRINT_EPILOG = """
 Examples:
   printime print --template note --title "Today" \\
     --content "Ship docs" --preview
+  printime print --template checklist --title "Today" \\
+    --items "Milk|Bread::x" --preview
   printime print --template message --title "Alert" \\
     --content "Printer ready" --preview
   printime print examples/email.md --preview

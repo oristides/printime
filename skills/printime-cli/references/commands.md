@@ -33,6 +33,7 @@ Positional `FILE` routing:
 | `--template` | Force template: `note`, `checklist`, `document`, `diagram`, `task`, `jira`, `message`, `email`, `receipt`, `heading`, `agenda`, `equation`, `ticket` — `printime list <name>` for fields |
 | `--title` | Template title |
 | `--content` | Template body |
+| `--items` | Checklist list: `Milk\|Bread::x\|Eggs` (pipe-separated; checked: `::x`) |
 | `--priority` | `HIGH`, `MEDIUM`, `LOW` |
 | `--tags` | Comma-separated tags |
 | `--url` | Fetch and print web article |
@@ -63,6 +64,7 @@ Positional `FILE` routing:
 | `--text`, `-t` | Text to preview |
 | `--template` | Template name |
 | `--title`, `--content` | Template fields |
+| `--items` | Checklist list: `Milk\|Bread::x` |
 | `--file`, `-f` | Context file |
 | `--yes`, `-y` | Print after preview |
 | `--no-cut` | Skip cut |
@@ -109,6 +111,12 @@ Lists thermal-safe fonts for `--ascii-font` and markdown fences (no flags).
 
 ```json
 {"template":"note","context":{"title":"Hi","content":"From HTTP"}}
+```
+
+**Print checklist:**
+
+```json
+{"template":"checklist","context":{"title":"Today","items":[{"text":"Milk","checked":false},{"text":"Bread","checked":true}]}}
 ```
 
 **Print email:**

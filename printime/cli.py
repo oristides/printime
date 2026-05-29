@@ -903,6 +903,39 @@ def _uses_segment_print(context: dict, template_name: str) -> bool:
     return should_use_segment_print(context.get('segments') or [], template_name)
 
 
+def _has_cli_checklist_input(args) -> bool:
+    return bool(getattr(args, 'items', None) or getattr(args, 'item', None))
+
+
+def _ensure_checklist_template(args) -> None:
+    if _has_cli_checklist_input(args) and not args.template:
+        args.template = 'checklist'
+
+
+def _finalize_template_context(context: dict, args, config: dict) -> dict:
+    """Merge CLI template flags into context before render."""
+    _ensure_checklist_template(args)
+    template = args.template or context.get('template')
+    from printime.services.checklist import enrich_checklist_context
+    from printime.services.enrich import enrich_context_fields
+
+    width = config['printer']['width']
+    context = enrich_checklist_context(
+        context,
+        template=template,
+        cli_items=getattr(args, 'item', None),
+        cli_items_string=getattr(args, 'items', None),
+        width=width,
+    )
+    return enrich_context_fields(
+        context,
+        width,
+        markdown=True,
+        link_qr=getattr(args, 'link_qr', False),
+        link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
+    )
+
+
 def _print_template(
     printer,
     config,
@@ -1065,6 +1098,8 @@ def cmd_print(args, config, printer):
             link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
         )
         template_name = getattr(args, 'template', None) or context.get('template', 'note')
+        context = _finalize_template_context(context, args, config)
+        template_name = getattr(args, 'template', None) or context.get('template', 'note')
 
         png_path = _resolve_context_image(context, config)
         if png_path and not _uses_segment_print(context, template_name):
@@ -1086,7 +1121,7 @@ def cmd_print(args, config, printer):
             print(f'ERROR: Print failed - {e}')
         return
 
-    if args.template:
+    if args.template or _has_cli_checklist_input(args):
         context = {}
         if args.file:
             context = load_context_file(args.file)
@@ -1102,14 +1137,7 @@ def cmd_print(args, config, printer):
             if getattr(args, 'tags', None):
                 context['tags'] = [t.strip() for t in args.tags.split(',')]
 
-        from printime.services.enrich import enrich_context_fields
-        context = enrich_context_fields(
-            context,
-            config['printer']['width'],
-            markdown=True,
-            link_qr=getattr(args, 'link_qr', False),
-            link_qr_size=int(config.get('printer', {}).get('link_qr_size', 5)),
-        )
+        context = _finalize_template_context(context, args, config)
         if context.get('segments') and not args.template:
             args.template = context.get('template', 'document')
 
@@ -1275,7 +1303,8 @@ def _print_template_entry(name: str, data: dict, *, verbose: bool = False) -> No
         print('    printime agenda --preview')
     elif name == 'checklist':
         print('  Example:')
-        print('    printime print examples/checklist.md --preview')
+        print('    printime print --template checklist --title "Market" \\')
+        print('      --items "Milk|Bread::x|Eggs|Butter" --preview')
     else:
         print('  Example:')
         print(f'    printime print --template {name} --title "..." --content "..." --preview')
@@ -1464,6 +1493,17 @@ def main():
     )
     print_parser.add_argument('--title', help='Title for template')
     print_parser.add_argument('--content', help='Content for template')
+    print_parser.add_argument(
+        '--items',
+        metavar='LIST',
+        help='Checklist items, pipe-separated: Milk|Bread::x|Eggs (checked: ::x, ::checked)',
+    )
+    print_parser.add_argument(
+        '--item',
+        action='append',
+        metavar='TEXT',
+        help=argparse.SUPPRESS,
+    )
     print_parser.add_argument('--priority', help='Priority (HIGH, MEDIUM, LOW)')
     print_parser.add_argument('--tags', help='Tags (comma-separated)')
     print_parser.add_argument('--url', help='Fetch and print a web article (blog post, Substack, etc.)')
@@ -1524,6 +1564,17 @@ def main():
     preview_parser.add_argument('--template', help='Template to preview')
     preview_parser.add_argument('--title', help='Title for template preview')
     preview_parser.add_argument('--content', help='Content for template preview')
+    preview_parser.add_argument(
+        '--items',
+        metavar='LIST',
+        help='Checklist items, pipe-separated: Milk|Bread::x|Eggs',
+    )
+    preview_parser.add_argument(
+        '--item',
+        action='append',
+        metavar='TEXT',
+        help=argparse.SUPPRESS,
+    )
     preview_parser.add_argument('--file', '-f', help='Context file (.md, .json, or .yaml)')
     preview_parser.add_argument('--no-cut', action='store_true', help='Do not cut paper after printing')
     preview_parser.add_argument('--yes', '-y', action='store_true', help='Print after preview')
@@ -1626,12 +1677,13 @@ def main():
                 print(f"Error: {e}", file=sys.stderr)
                 return 1
 
-        template_name = args.template or context.get('template', 'note')
         if not context:
             if getattr(args, 'title', None):
                 context['title'] = args.title
             if getattr(args, 'content', None):
                 context['content'] = args.content
+        context = _finalize_template_context(context, args, config)
+        template_name = args.template or context.get('template', 'note')
         no_cut = getattr(args, 'no_cut', False)
         auto_yes = getattr(args, 'yes', False)
 
@@ -1657,7 +1709,7 @@ def main():
                 print("Printed successfully")
             else:
                 print("Preview only. Add --yes to print.")
-        elif args.file or context or getattr(args, 'title', None) or getattr(args, 'content', None):
+        elif args.file or context or getattr(args, 'title', None) or getattr(args, 'content', None) or _has_cli_checklist_input(args):
             rendered = render_template_preview(template_name, context)
             print(rendered)
             if auto_yes:
